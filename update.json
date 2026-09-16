@@ -1,7 +1,7 @@
 {
   "version": "v3.1",
   "versionCode": 23,
-  "zipUrl": "https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO/releases/download/v3.1/TouchGuard-v3.1.zip",
-  "changelog": "https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_REPO/main/CHANGELOG.md",
-  "summary": "One or two lines here about what's new -- this is what shows in the WebUI's own popup. The 4 fields above it are the standard fields your root manager itself reads; this one's extra, just for the in-app banner."
+  "zipUrl": "https://github.com/shivrajtode/TouchGuard/releases/download/v3.1/TouchGuard-v3.1.zip",
+  "changelog": "https://raw.githubusercontent.com/shivrajtode/TouchGuard/main/CHANGELOG.md",
+  "summary": "Quick actions panel, in-app + native update checking, and a real fix for lag during ghost-touch bursts."
 }
