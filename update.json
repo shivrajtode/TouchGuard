@@ -1,7 +1,7 @@
 {
-  "version": "v3.1",
-  "versionCode": 23,
-  "zipUrl": "https://github.com/shivrajtode/TouchGuard/releases/download/v3.1/TouchGuard-v3.1.zip",
+  "version": "v3.2",
+  "versionCode": 24,
+  "zipUrl": "https://github.com/shivrajtode/TouchGuard/releases/download/v3.2/TouchGuard-v3.2.zip",
   "changelog": "https://raw.githubusercontent.com/shivrajtode/TouchGuard/main/CHANGELOG.md",
-  "summary": "Quick actions panel, in-app + native update checking, and a real fix for lag during ghost-touch bursts."
+  "summary": "Fixed the WebUI hanging on load when the update-check had no timeout -- a real bug, not a one-off."
 }
