@@ -64,6 +64,12 @@ To stop it from starting at boot entirely:
 ```
 su -c "rm /data/adb/modules/touchguard/enabled"
 ```
+If module doesnt works after reboot 
+then go to termux and excute this command by granting root permission 
+```
+su -c sh /data/adb/modules/touchguard/build.sh
+```
+and reboot and and check
 
 ## If anything ever goes wrong
 
