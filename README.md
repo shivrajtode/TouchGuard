@@ -49,6 +49,13 @@ ever use at once -- most people pick 1 or 2. Make sure it shows the
 filter running. That's the whole job: no daily maintenance, and
 changing your mind later is one tap, no reboot.
 
+If module doesnt works after reboot 
+then go to termux and excute this command by granting root permission 
+```
+su -c sh /data/adb/modules/touchguard/build.sh
+```
+and reboot and and check
+
 Full log is at `/data/adb/modules/touchguard/touchguard.log` if you ever
 need it outside the control panel's own Logs tab.
 
@@ -64,12 +71,7 @@ To stop it from starting at boot entirely:
 ```
 su -c "rm /data/adb/modules/touchguard/enabled"
 ```
-If module doesnt works after reboot 
-then go to termux and excute this command by granting root permission 
-```
-su -c sh /data/adb/modules/touchguard/build.sh
-```
-and reboot and and check
+
 
 ## If anything ever goes wrong
 
