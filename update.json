@@ -1,7 +1,7 @@
 {
-  "version": "v3.2",
-  "versionCode": 24,
-  "zipUrl": "https://github.com/shivrajtode/TouchGuard/releases/download/v3.2/TouchGuard-v3.2.zip",
-  "changelog": "https://raw.githubusercontent.com/shivrajtode/TouchGuard/main/CHANGELOG.md",
-  "summary": "Fixed the WebUI hanging on load when the update-check had no timeout -- a real bug, not a one-off."
+  "version": "v3.3",
+  "versionCode": 25,
+  "zipUrl": "https://github.com/shivrajtode/TouchGuard/releases/download/v3.3/TouchGuard-v3.3.zip",
+  "changelog": "https://raw.githubusercontent.com/shivrajtode/TouchGuard/main/LATEST.md",
+  "summary": "Fixed Start launching a second, competing supervisor loop -- likely cause of the busy-loop and finger-count glitch on new hardware."
 }
