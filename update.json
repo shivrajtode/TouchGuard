@@ -1,7 +1,7 @@
 {
-  "version": "v3.3",
-  "versionCode": 25,
-  "zipUrl": "https://github.com/shivrajtode/TouchGuard/releases/download/v3.3/TouchGuard-v3.3.zip",
+  "version": "v3.7",
+  "versionCode": 29,
+  "zipUrl": "https://github.com/shivrajtode/TouchGuard/releases/download/v3.7/TouchGuard-v3.7.zip",
   "changelog": "https://raw.githubusercontent.com/shivrajtode/TouchGuard/main/LATEST.md",
-  "summary": "Fixed Start launching a second, competing supervisor loop -- likely cause of the busy-loop and finger-count glitch on new hardware."
+  "summary": "Batched event reads (up to 64 per syscall instead of 1) to cut real overhead during ghost-touch bursts specifically -- verified with an isolated order/completeness test."
 }
