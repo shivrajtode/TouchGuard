@@ -1,3 +1,32 @@
+## v3.7: batched reads, to cut syscall overhead during actual bursts
+
+Asked directly to keep optimizing the module itself for the lag
+complaint, rather than wait on another log capture. Went back through
+the hot path looking for real, structural cost rather than guessing --
+found one real one that hadn't been touched yet: `read()` was pulling
+exactly one event per syscall, every time, no matter how many were
+already queued and ready. That cost scales with event *rate*, which
+means it's worst precisely during a genuine ghost-touch burst -- rapid,
+chattery, multi-slot activity is exactly a high syscall-rate scenario,
+and exactly when lag gets reported.
+
+Changed to pull whatever's actually queued (up to 64 events) in one
+`read()`, then process each one individually afterward with the exact
+same per-event logic as before -- nothing about event handling itself
+changed, only how many syscalls it takes to receive them. Verified with
+an isolated test (a pipe standing in for the real device, 150 events in
+a burst larger than one batch): 3 real syscalls instead of 150, strict
+order preserved, nothing lost or duplicated across the refill boundary.
+
+One subtlety that would have been a real regression if missed: `poll()`
+must never run while there's still buffered, unprocessed data sitting
+locally -- doing so could add up to 500ms of pointless delay before
+handling something already in hand. Restructured so `poll()` and the
+underlying `read()` only happen once the local buffer is actually
+exhausted; a still-full buffer skips straight to the next event with
+zero added latency.
+
+
 ## v3.3: Start could launch a second, competing supervisor loop
 
 First real-world test on new hardware -- a Lenovo Tab M10 HD (MediaTek,
