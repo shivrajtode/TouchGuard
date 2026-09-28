@@ -1,7 +1,7 @@
 {
-  "version": "v3.7",
-  "versionCode": 29,
-  "zipUrl": "https://github.com/shivrajtode/TouchGuard/releases/download/v3.7/TouchGuard-v3.7.zip",
+  "version": "v3.10",
+  "versionCode": 31,
+  "zipUrl": "https://github.com/shivrajtode/TouchGuard/releases/download/v3.10/TouchGuard-v3.10.zip",
   "changelog": "https://raw.githubusercontent.com/shivrajtode/TouchGuard/main/LATEST.md",
-  "summary": "Batched event reads (up to 64 per syscall instead of 1) to cut real overhead during ghost-touch bursts specifically -- verified with an isolated order/completeness test."
+  "summary": "Telegram channel + discussion group linked from the WebUI's About tab, a new logo showing a ghost touch blocked while a real touch passes through, and real clickable README badges."
 }
