@@ -4,6 +4,7 @@
 
 FOUND_NAME=""
 PATTERNS="nvt novatek goodix synaptics focaltech ft5 gt9 cyttsp atmel touchscreen touch_dev"
+OWN_NAME="TouchGuard Virtual Touchscreen"
 
 # Pass 1: prefer a device whose name matches a known touch-driver pattern
 # AND reports real multitouch capability -- fastest path on common phones.
@@ -11,6 +12,7 @@ for dev in /sys/class/input/event*; do
   [ -f "$dev/device/name" ] || continue
   NAME="$(cat "$dev/device/name" 2>/dev/null)"
   [ -z "$NAME" ] && continue
+  [ "$NAME" = "$OWN_NAME" ] && continue
   LOWER="$(echo "$NAME" | tr 'A-Z' 'a-z')"
   for p in $PATTERNS; do
     case "$LOWER" in
@@ -30,11 +32,16 @@ done
 # tablet with its own panel). Fall back to pure capability detection: any
 # device reporting the defining multitouch axes IS a touchscreen, whatever
 # it's called. This is what makes install work unmodified across devices.
+# Explicitly excludes our own virtual device by name -- it deliberately
+# reports these same axes (that's what makes it a valid replacement), so
+# without this exclusion a reflash catching a still-alive prior instance
+# mid-transition would detect itself and deadlock forever on boot.
 if [ -z "$FOUND_NAME" ]; then
   for dev in /sys/class/input/event*; do
     [ -f "$dev/device/name" ] || continue
     NAME="$(cat "$dev/device/name" 2>/dev/null)"
     [ -z "$NAME" ] && continue
+    [ "$NAME" = "$OWN_NAME" ] && continue
     NODE="/dev/input/$(basename "$dev")"
     CAPS="$(getevent -pl "$NODE" 2>/dev/null)"
     if echo "$CAPS" | grep -q ABS_MT_SLOT \
@@ -139,8 +146,8 @@ ui_print "║ ✓ No Termux/compiler needed for a fresh install               �
 ui_print "║ ✓ Auto-recovers if the touch driver doesn't resume cleanly     ║"
 ui_print "║ ✓ Survives the manager app being killed in the background      ║"
 ui_print "║                                                                ║"
-ui_print "║ Module by: Shivraj (@Shivraj_editx)                           ║"
-ui_print "║ Message me on Telegram: https://t.me/Shivraj_editx            ║"
+ui_print "║ Module by: Shivraj (@Shivraj_editx)                            ║"
+ui_print "║ Updates & support: https://t.me/touchguard_shivrajtode         ║"
 ui_print "║                                                                ║"
 ui_print "║ Open TouchGuard in KSU manager to view the live log viewer     ║"
 ui_print "║ and control the filter daemon without rebooting.              ║"
@@ -155,4 +162,4 @@ ui_print ""
 # outside a normal app context, which generally works on a booted device
 # but isn't a fully guaranteed path across every ROM/manager combination --
 # the same link is always available in the WebUI as a manual fallback.
-(sleep 4; am start -a android.intent.action.VIEW -d "https://t.me/Shivraj_editx" >/dev/null 2>&1) &
+(sleep 4; am start -a android.intent.action.VIEW -d "https://t.me/touchguard_shivrajtode" >/dev/null 2>&1) &
