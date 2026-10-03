@@ -1,0 +1,27 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#5b21b6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Shield: the app's real Home-tab icon path, scaled via transform and
+       centered in the square (so it survives a circular avatar crop). -->
+  <g transform="translate(-14,-14) scale(22.5)">
+    <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"
+          fill="url(#shieldGrad)" stroke="#3b1878" stroke-width="0.35"/>
+  </g>
+
+  <!-- Ghost touch: dashed outline (not solid, not really there) with a
+       clear X. Bold and simple so it survives at small sizes. -->
+  <circle cx="193.5" cy="238.5" r="52.5" fill="none" stroke="#f5f3ff" stroke-width="11"
+          stroke-dasharray="17.5 12.5" opacity="0.65"/>
+  <line x1="167.3" y1="212.3" x2="219.8" y2="264.8" stroke="#f5f3ff" stroke-width="11" stroke-linecap="round"/>
+  <line x1="219.8" y1="212.3" x2="167.3" y2="264.8" stroke="#f5f3ff" stroke-width="11" stroke-linecap="round"/>
+
+  <!-- Real touch: solid, larger, unmarked: your actual finger, passing
+       straight through. -->
+  <circle cx="298.5" cy="328.5" r="62.5" fill="none" stroke="#f5f3ff" stroke-width="11" opacity="0.55"/>
+  <circle cx="298.5" cy="328.5" r="37.5" fill="#f5f3ff"/>
+</svg>
