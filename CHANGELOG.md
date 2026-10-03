@@ -5,6 +5,303 @@ turned out to be wrong, and why. Kept complete on purpose: if you're
 trying to understand *why* something is built the way it is, the reason
 is usually a bug further down this file.
 
+## v3.10: WebUI links, a proper logo, and actual clickable badges
+
+Follow-up to v3.9, not a repeat of it -- that pass added the Telegram
+links to the README and a first logo, but missed the one place someone
+actually using the app would look for them: the WebUI's own About tab
+still only had the personal-DM link. Added the channel and discussion
+group there too, labeled clearly enough to tell apart from the DM link,
+so the community's discoverable from inside the app itself, not only
+from GitHub.
+
+The post-flash auto-open (and the contact line in the installer
+banner) was still pointed at the author's personal Telegram chat.
+Switched both to the channel: that's where updates and support live,
+and someone who just flashed a module shouldn't land in a stranger's
+DMs. The personal link stays in the WebUI's About tab, labeled as a
+direct message, for anyone who wants it.
+
+Also replaced the logo, in two passes worth being honest about. What
+v3.9 shipped was flat, generic clip-art colors with no real tie to the
+app's own look. First pass swapped in a shield, but it was hand
+redrawn from a general impression of the app's own Home-tab icon rather
+than the real path data, and it showed -- correctly flagged as not
+actually matching. Fixed by not re-deriving any coordinates by hand at
+all: the shield is the app's real icon path
+(`M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z`), copied verbatim
+into an SVG transform (translate + scale) rather than redrawn --
+geometrically guaranteed identical, not an approximation, since there's
+no arithmetic left to get wrong. Verified by rendering the real icon
+and the transformed version side by side before finalizing anything.
+
+Second correction was about the *idea*, not the shape: the center
+symbol was a plain checkmark, which reads as generic "verified/secure"
+-- true of any security app, not specifically what this one does. A
+single crossed-out touch was the next attempt, but it also told the
+wrong story: TouchGuard doesn't block touch, it blocks *ghost* touch
+while letting real touch through, and one blocked symbol alone reads
+like "all touch rejected."
+
+Final design shows both halves. A dashed, crossed-out circle is the
+ghost touch (not solid, not really there, rejected); a solid, unmarked
+circle with a ring is the real one, passing straight through. A
+literal little ghost shape was tried first for the phantom side and
+dropped -- too much fine detail, it collapsed into an illegible smudge
+at icon size. Dashed-vs-solid is a bolder, simpler contrast that still
+reads small. Also checked geometrically, not by eye, that both rings
+sit fully inside the shield edge with margin (an earlier layout had the
+real-touch ring visibly clipped by it). Also caught, late, that the
+shield sat high in its square canvas (about 40px above, 145px below),
+which would have looked lopsided as a circular Telegram avatar --
+re-centered and enlarged it (equal margins top and bottom, checked
+numerically) and previewed it in an actual circular crop. Checked at
+chat-list sizes and on both dark and light backgrounds, since that's
+how it's really seen as a channel picture or README header.
+
+None of those checks caught the actual bug that shipped: one of the
+comments in the SVG's source contained a double hyphen ("--"), which
+is illegal inside an XML comment. Every preview during design embedded
+the SVG inside an HTML page, where browsers parse comments loosely and
+never flagged it -- opening the file directly as its own document
+(what a phone's file viewer does) hits XML's strict parser instead,
+which stops rendering at the first error and drops everything after
+it. That's what actually surfaced it: a screenshot of the file opened
+standalone, showing the ghost half but not the real-touch half, with
+the parser's own error banner above it. Fixed by removing the double
+hyphens from the comment text and re-validating with a strict XML
+parser this time, not just an HTML-embedded preview -- both as its own
+document and decoded through `<img>`, the way the README actually
+loads it.
+
+README's community links were plain text with no real button -- added
+proper clickable Telegram badges near the top, which is what "an open
+button" actually needs to render as something clickable rather than a
+URL to copy.
+
+## v3.9: community links and branding
+
+Added Telegram group and discussion channel links to the README and
+credits, so people know where to ask questions, share setups, and report
+issues first (Telegram is the primary community space). Added SVG logos
+for the module and Telegram channel -- a clean, modern icon that works
+as both a full logo and as a small avatar.
+
+## v3.8: finger-count display race, unrelated to v3.3's daemon-level bug
+
+Reported as: pick "1", press Start, display shows "2" -- but the actual
+block behavior on screen matches "1" the whole time. Worth being
+precise about why this is a genuinely different bug from v3.3's
+double-supervisor race rather than assuming a repeat: this happened
+"on any device," with no dependency on a specific manager's process
+model, and traced to something else entirely -- a pure async race in
+the WebUI's own JS, present since the WebUI was first built. Confirmed
+by tracing the actual code rather than pattern-matching against the
+last similar-sounding report.
+
+The page's own initial `refreshStatus()` fires on load and reads
+whatever's currently in `max_fingers.conf` -- on a fresh flash, still
+the default. If a finger is picked fast enough, that already-in-flight
+read (of the *old* value) can resolve after the click and overwrite its
+optimistic highlight with stale data, purely based on which async call
+happens to resolve last. The daemon was never wrong here -- it reads
+the file fresh on every restart and was applying the real value
+correctly the whole time, which is exactly why the actual block
+behavior always matched what was picked.
+
+Fixed with a generation counter: every state-changing action (a
+finger-count pick, Start, Stop) bumps it immediately, before anything
+else runs. `refreshStatus()` captures the current value before its
+shell call and checks it again after -- if a newer action happened
+while it was waiting, its answer was already stale before it arrived,
+and it discards its own result instead of overwriting something more
+recent. Verified with an isolated test reproducing the exact timing
+(a slow, stale initial call resolving after a fast click): the
+highlighted value stayed correctly on the user's pick through the
+entire window where the bug would have shown the old default instead.
+
+## v3.7: batched reads, to cut syscall overhead during actual bursts
+
+Asked directly to keep optimizing the module itself for the lag
+complaint, rather than wait on another log capture. Went back through
+the hot path looking for real, structural cost rather than guessing --
+found one real one that hadn't been touched yet: `read()` was pulling
+exactly one event per syscall, every time, no matter how many were
+already queued and ready. That cost scales with event *rate*, which
+means it's worst precisely during a genuine ghost-touch burst -- rapid,
+chattery, multi-slot activity is exactly a high syscall-rate scenario,
+and exactly when lag gets reported.
+
+Changed to pull whatever's actually queued (up to 64 events) in one
+`read()`, then process each one individually afterward with the exact
+same per-event logic as before -- nothing about event handling itself
+changed, only how many syscalls it takes to receive them. Verified with
+an isolated test (a pipe standing in for the real device, 150 events in
+a burst larger than one batch): 3 real syscalls instead of 150, strict
+order preserved, nothing lost or duplicated across the refill boundary.
+
+One subtlety that would have been a real regression if missed: `poll()`
+must never run while there's still buffered, unprocessed data sitting
+locally -- doing so could add up to 500ms of pointless delay before
+handling something already in hand. Restructured so `poll()` and the
+underlying `read()` only happen once the local buffer is actually
+exhausted; a still-full buffer skips straight to the next event with
+zero added latency.
+
+## v3.6: a second, separate backgrounding-kill mechanism on Aster/APatch
+
+The double-supervisor race (v3.3) was flagged at the time as a likely
+but unconfirmed explanation for backgrounding-kill on Aster/APatch --
+turned out to be right to stay skeptical. A direct before/after
+`/proc/pid/cgroup` comparison showed the daemon confirmed alive,
+healthy, and correctly sitting in the root cgroup (`0::/`, v2.4's fix
+holding exactly as intended) 20 seconds after backgrounding the
+manager app -- then later gone entirely, with the supervisor not
+restarting it either, meaning the whole tree died together rather than
+just the child.
+
+Since the cgroup fix was directly confirmed still working, this had to
+be a different mechanism entirely. Android's low-memory killer doesn't
+use cgroups -- it reads `oom_score_adj`, a separate per-process value
+inherited from whatever forked it, and a background tablet with less
+RAM than a phone hits memory pressure far more often, giving it far
+more chances to act on a stale, inherited "this belongs to a
+backgrounded app" score. Fixed by having the supervisor write `-1000`
+(the standard "never kill" sentinel) to its own `oom_score_adj` once,
+at the very top of `launch.sh`, before forking anything -- every
+daemon restart inherits that protection automatically via normal
+fork() semantics, for the supervisor's entire lifetime, regardless of
+whether it was launched at boot or from the WebUI.
+
+Also checked while investigating: the "not starting at first time"
+report didn't show up in the log actually pulled -- it showed clean,
+immediate detection on `/dev/input/event5` and normal multi-finger
+blocking activity, no retry-loop. Consistent with v3.4's detection fix
+actually working; flagged as something to keep an eye on rather than
+claimed fixed outright, since it wasn't directly reproduced here.
+
+## v3.5: idle poll frequency cut, for reported battery drain
+
+Reported battery drain and lag. The poll timeout governing the main
+loop had been 200ms since v1.9's optimization pass -- meaning the
+process wakes up at least 5 times a second, forever, even sitting fully
+idle with the screen off. That timeout only matters when there's
+nothing to do; a real touch event wakes poll() immediately regardless
+of what it's set to, so this has zero effect on actual responsiveness.
+But waking a process that reliably can prevent a SoC from reaching its
+deepest idle states, which is a well-understood, legitimate source of
+background battery drain distinct from any actual CPU work being done.
+
+Raised to 500ms. Checked against the tightest configured stale window
+(`top_zone_stale_ms`, default 1500ms) before picking that number --
+500ms still gives 3 chances to catch a stale contact within that
+window, comfortable margin, not a tuning compromise for correctness.
+
+Said plainly: this is a solid, reasoned fix for the battery half of the
+report. It's a real but weaker fit for "lag" specifically -- fewer
+background wakeups plausibly helps on a more constrained SoC, but
+there's no log evidence tying this exact mechanism to lag the way
+v3.0's disk-flush bug had. If lag persists after this, worth checking
+whether it's the same shape as v3.0 (happens specifically during
+blocking) or something new entirely.
+
+## v3.4: detection could lock onto its own virtual device and deadlock forever
+
+Reported as TouchGuard simply not starting -- the log showed
+`'TouchGuard Virtual Touchscreen' not found among input devices,
+retrying in 5s`, repeating forever. That name is the daemon's *own*
+output device, not a real touchscreen -- meaning `touchguard.conf` had
+somehow been told to treat its own virtual device as the input source,
+a self-referential deadlock (can't create the virtual device until it
+finds and grabs a real one, but it's searching for the virtual one).
+
+Root cause, confirmed directly in `customize.sh`: its capability-based
+fallback detection (added in v1.6 to work on any device regardless of
+driver name) matches *any* input device reporting `ABS_MT_SLOT` +
+`ABS_MT_POSITION_X/Y` -- and the virtual device deliberately reports
+exactly those, since that's what makes it a valid touchscreen
+replacement in the first place. If a prior instance's virtual device
+was still alive at the exact moment a reflash's `customize.sh` ran,
+detection would happily match itself. Plausibly related to the v3.3
+double-supervisor race, which could easily have left something alive at
+an unlucky moment during a reflash -- though this bug existed
+independently since v1.6 and needed no help to trigger given the right
+timing.
+
+Fixed by explicitly excluding the virtual device's exact name from both
+detection passes. It can never be its own input source again,
+regardless of what state a prior instance is in during install.
+
+## v3.3: Start could launch a second, competing supervisor loop
+
+First real-world test on new hardware -- a Lenovo Tab M10 HD (MediaTek,
+Aster/APatch) and a Samsung device -- surfaced a bug that had likely
+been sitting latent since the WebUI's Start button was written. On
+boot, `service.sh` already launches a `launch.sh` supervisor loop.
+`setMaxFingers()` and `stopDaemon()` only ever signal an *existing*
+loop (`pkill -x touchguard`, which the loop's own restart logic
+handles), but `startDaemon()` unconditionally launched a brand new
+`launch.sh` with no check for one already running. Pressing Start on
+an already-running install -- exactly the kind of thing you do on a
+first install to confirm it's actually working -- created two
+independent supervisor loops, both trying to keep their own
+`touchguard` instance alive and grabbing the same input device. Neither
+ever fully wins: the device's log showed a repeating `EVIOCGRAB failed:
+Device or resource busy` loop, and status reads (including the finger
+count shown in the UI) became unpredictable depending on which of the
+two competing instances happened to answer at that moment. Fixed by
+having `startDaemon()` check for an already-running loop first
+(`pgrep -f` against `launch.sh`'s own path) and do nothing if one's
+found, rather than always launching another.
+
+Two things from the same report stay open rather than getting papered
+over with a guess: whether backgrounding-kill still happens on Aster/
+APatch specifically once only one supervisor loop is ever running
+(this fix should mean it isn't the double-loop causing it anymore, but
+that's a prediction to verify, not a confirmed fix for that exact
+symptom), and why the prebuilt binary needed a manual `build.sh` rescue
+on both new devices before working -- plausible (flash-time script
+execution is typically far more restricted than a later interactive
+Termux session, which would explain compiling failing at flash time but
+succeeding when run by hand afterward) but not confirmed, since the
+original `build.log` from either failure didn't survive being
+overwritten by the manual rebuild.
+
+## v3.2: WebUI hanging on load, from an update-check with no timeout
+
+A report came in of the WebUI opening but getting stuck on loading,
+seemingly for good. Cause: v2.9's `checkForUpdate()` runs `curl`/`wget`
+against GitHub directly from the device, and neither call had a timeout.
+On a bad connection -- weak signal, WiFi with no real internet, slow DNS
+-- that can hang for a long time instead of failing fast. The exec
+bridge to the root shell almost certainly processes commands one at a
+time in order, so a single stuck call there jams the whole channel
+behind it -- including the status, finger-count, and log calls the rest
+of the page actually needs to render as anything other than stuck.
+
+Fixed two ways: `curl --connect-timeout 3 --max-time 5` and `wget
+--timeout=5` now bound the absolute worst case to a few seconds instead
+of indefinitely, and the check itself now waits 4 seconds after the page
+loads before it ever runs, so it can't compete with the page's own first
+load for the channel even with the timeout in place. A background
+nice-to-have should never have been able to hold the real UI hostage in
+the first place. Also caught in the same pass: the WebUI's own
+`UPDATE_JSON_URL` constant still had the placeholder GitHub URL in it --
+separate from `module.prop`'s copy, which did get corrected earlier --
+so the in-app popup had never actually been able to check anything since
+that fix. Both now point at the real repo.
+
+## v3.1: README split into a real one, plus a release-prep pass
+
+The README had grown into a single file mixing an actual introduction
+with the entire version-by-version bug history -- fine for me and for
+Shivraj working on it, not what a stranger deciding whether to trust and
+install this should see first. Split it: `README.md` is now what a new
+visitor actually needs (what it does, requirements, install, safety
+net), and `CHANGELOG.md` holds the complete history, unchanged in
+substance. `module.prop`'s `description` field updated to match the same
+plain-language voice.
+
 ## v3.0: fixed a real lag source, introduced by v2.8's own verbose mode
 
 A report came in of the device lagging specifically during ghost-touch
