@@ -1,3 +1,5 @@
+<p align="center"><img src="logo.svg" width="128" alt="TouchGuard"></p>
+
 # TouchGuard
 
 **Stops phantom touches on your screen — without you feeling a thing.**
