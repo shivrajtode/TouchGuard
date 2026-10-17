@@ -1,23 +1,39 @@
 <!DOCTYPE html>
-<html data-theme="glass" data-theme-choice="glass">
+<html lang="en" data-theme="glass" data-theme-choice="glass">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TouchGuard</title>
+<script>
+/* Paint the saved theme on the very first frame (theme.conf is read afterwards and wins). */
+(function () {
+  try {
+    var c = localStorage.getItem('tg-theme') || 'glass';
+    var t = c === 'system' ? (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : c;
+    var d = document.documentElement;
+    d.setAttribute('data-theme', t); d.setAttribute('data-theme-choice', c);
+    var f = localStorage.getItem('tg-fx'); if (f) d.setAttribute('data-fx', f);
+  } catch (e) {}
+})();
+</script>
 <style>
 /* ===================================================================
-   THEME TOKENS
-   Every visual value a component needs lives here, per theme. Nothing
-   below this block hardcodes a color, radius, or shadow -- swapping
-   themes is just swapping which block is active on <html data-theme>.
+   TOKENS
+   Every visual value a component needs is set here, per theme. Nothing
+   below hardcodes a color, radius or shadow. Attribute selectors (not
+   html-only) so any element can carry data-theme and re-scope them --
+   that is how the Theme page draws a live preview of each theme.
+   No color-mix(): older WebViews drop the whole declaration, so every
+   tint is an explicit rgba here instead.
 =================================================================== */
 :root {
-  --font: Roboto, -apple-system, Helvetica, Arial, sans-serif;
-  --nav-h: 64px;
+  --font: Roboto, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --nav-h: 68px;
+  --maxw: 1080px;
 }
 
 /* ---- Liquid Glass: iOS-coded, translucent, glossy, pill-shaped ---- */
-html[data-theme="glass"] {
+[data-theme="glass"] {
   --bg: #06070c;
   --bg-image:
     radial-gradient(circle at 12% 6%,  rgba(10,132,255,0.38), transparent 42%),
@@ -26,475 +42,788 @@ html[data-theme="glass"] {
     radial-gradient(circle at 8% 92%,  rgba(255,55,95,0.16), transparent 40%);
   --surface: linear-gradient(180deg, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0.06) 22%, rgba(255,255,255,0.09) 100%), rgba(255,255,255,0.07);
   --surface-flat: rgba(28,28,32,0.86);
-  --surface-border: rgba(255,255,255,0.3);
-  --surface-border-soft: rgba(255,255,255,0.08);
+  --surface-border: rgba(255,255,255,0.28);
+  --hairline: rgba(255,255,255,0.13);
   --on-surface: #f5f5f7;
-  --on-surface-dim: rgba(245,245,247,0.6);
-  --on-surface-faint: rgba(245,245,247,0.38);
+  --on-surface-dim: rgba(245,245,247,0.68);
+  --on-surface-faint: rgba(245,245,247,0.54);
   --primary: #0a84ff;
   --primary-2: #64b5ff;
   --on-primary: #ffffff;
-  --error: #ff453a;
+  --success: #30d158;  --on-success: #06280f;
+  --error: #ff453a;    --on-error: #380604;
   --warn: #ffd60a;
-  --success: #30d158;
-  --radius-sm: 16px;
-  --radius-md: 22px;
-  --radius-lg: 30px;
-  --radius-pill: 999px;
+  --soft-primary: rgba(10,132,255,0.26);
+  --soft-success: rgba(48,209,88,0.22);
+  --soft-error: rgba(255,69,58,0.24);
+  --soft-warn: rgba(255,214,10,0.20);
+  --seg-bg: rgba(255,255,255,0.11);
+  --field-bg: rgba(6,8,16,0.52);
+  --field-dot: rgba(255,255,255,0.24);
+  --field-mark: rgba(255,255,255,0.20);
+  --radius-sm: 16px; --radius-md: 22px; --radius-lg: 30px; --radius-pill: 999px; --radius-seg: 999px;
   --shadow: inset 0 1px 1px rgba(255,255,255,0.45), 0 10px 30px rgba(0,0,0,0.35);
   --shadow-soft: 0 6px 18px rgba(0,0,0,0.28);
   --blur: blur(20px) saturate(180%);
   --ease: cubic-bezier(0.34,1.56,0.64,1);
-  --ease-fast: cubic-bezier(0.34,1.56,0.64,1);
   --nav-bg: rgba(20,20,24,0.72);
 }
 
 /* ---- Material Expressive: bold tonal color, big varied shapes, spring motion ---- */
-html[data-theme="expressive"] {
+[data-theme="expressive"] {
   --bg: #15121c;
   --bg-image: radial-gradient(circle at 80% -10%, rgba(124,77,255,0.25), transparent 55%);
   --surface: #241f30;
   --surface-flat: #241f30;
-  --surface-border: rgba(255,255,255,0.06);
-  --surface-border-soft: rgba(255,255,255,0.06);
+  --surface-border: rgba(255,255,255,0.07);
+  --hairline: rgba(255,255,255,0.09);
   --on-surface: #ece6f5;
   --on-surface-dim: #b6adc7;
-  --on-surface-faint: #8a8098;
+  --on-surface-faint: #9a90a8;
   --primary: #b389ff;
   --primary-2: #d0bcff;
   --on-primary: #2b1156;
-  --error: #ffb4ab;
+  --success: #8de5a1;  --on-success: #0b3a1a;
+  --error: #ffb4ab;    --on-error: #4a0b05;
   --warn: #ffd875;
-  --success: #8de5a1;
-  --radius-sm: 18px;
-  --radius-md: 26px;
-  --radius-lg: 34px;
-  --radius-pill: 999px;
+  --soft-primary: rgba(179,137,255,0.22);
+  --soft-success: rgba(141,229,161,0.20);
+  --soft-error: rgba(255,180,171,0.20);
+  --soft-warn: rgba(255,216,117,0.18);
+  --seg-bg: #1c1824;
+  --field-bg: #1b1726;
+  --field-dot: rgba(236,230,245,0.19);
+  --field-mark: rgba(179,137,255,0.26);
+  --radius-sm: 18px; --radius-md: 26px; --radius-lg: 34px; --radius-pill: 999px; --radius-seg: 999px;
+  --thumb-radius: 42% 58% 55% 45% / 55% 45% 55% 45%;
   --shadow: 0 1px 2px rgba(0,0,0,0.3);
   --shadow-soft: 0 1px 2px rgba(0,0,0,0.25);
   --blur: none;
   --ease: cubic-bezier(0.2,0.9,0.3,1.3);
-  --ease-fast: cubic-bezier(0.2,0.9,0.3,1.3);
   --nav-bg: #1c1824;
 }
 
 /* ---- Dark: plain, calm, neutral -- deliberately NOT expressive ---- */
-html[data-theme="dark"] {
+[data-theme="dark"] {
   --bg: #121212;
   --bg-image: none;
   --surface: #1e1e1e;
   --surface-flat: #1e1e1e;
-  --surface-border: rgba(255,255,255,0.08);
-  --surface-border-soft: rgba(255,255,255,0.06);
+  --surface-border: rgba(255,255,255,0.09);
+  --hairline: rgba(255,255,255,0.09);
   --on-surface: #e8e8e8;
-  --on-surface-dim: #a0a0a0;
-  --on-surface-faint: #6e6e6e;
+  --on-surface-dim: #b0b0b0;
+  --on-surface-faint: #8a8a8a;
   --primary: #5b9bf7;
   --primary-2: #86b6f9;
   --on-primary: #06254f;
-  --error: #ff6b60;
+  --success: #4cbb6c;  --on-success: #04210e;
+  --error: #ff6b60;    --on-error: #3a0703;
   --warn: #f0c04a;
-  --success: #4cbb6c;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 16px;
-  --radius-pill: 999px;
-  --shadow: none;
-  --shadow-soft: none;
-  --blur: none;
+  --soft-primary: rgba(91,155,247,0.20);
+  --soft-success: rgba(76,187,108,0.20);
+  --soft-error: rgba(255,107,96,0.20);
+  --soft-warn: rgba(240,192,74,0.18);
+  --seg-bg: #2a2a2a;
+  --field-bg: #181818;
+  --field-dot: rgba(255,255,255,0.17);
+  --field-mark: rgba(255,255,255,0.15);
+  --radius-sm: 10px; --radius-md: 14px; --radius-lg: 16px; --radius-pill: 999px; --radius-seg: 12px;
+  --shadow: none; --shadow-soft: none; --blur: none;
   --ease: cubic-bezier(0.2,0,0,1);
-  --ease-fast: cubic-bezier(0.2,0,0,1);
   --nav-bg: #1a1a1a;
 }
 
 /* ---- Light: counterpart to Dark ---- */
-html[data-theme="light"] {
-  --bg: #fafafa;
+[data-theme="light"] {
+  --bg: #f4f5f7;
   --bg-image: none;
   --surface: #ffffff;
   --surface-flat: #ffffff;
-  --surface-border: rgba(0,0,0,0.08);
-  --surface-border-soft: rgba(0,0,0,0.06);
+  --surface-border: rgba(0,0,0,0.09);
+  --hairline: rgba(0,0,0,0.09);
   --on-surface: #1c1c1c;
-  --on-surface-dim: #5a5a5a;
-  --on-surface-faint: #8f8f8f;
+  --on-surface-dim: #55575c;
+  --on-surface-faint: #6b6b6b;
   --primary: #2f6fd6;
   --primary-2: #4b84e0;
   --on-primary: #ffffff;
-  --error: #d5372a;
-  --warn: #a97300;
-  --success: #1e8e4a;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 16px;
-  --radius-pill: 999px;
-  --shadow: 0 1px 3px rgba(0,0,0,0.08);
-  --shadow-soft: 0 1px 2px rgba(0,0,0,0.06);
-  --blur: none;
+  --success: #177a3c;  --on-success: #ffffff;
+  --error: #c62d21;    --on-error: #ffffff;
+  --warn: #8a5a00;
+  --soft-primary: rgba(47,111,214,0.13);
+  --soft-success: rgba(23,122,60,0.13);
+  --soft-error: rgba(198,45,33,0.12);
+  --soft-warn: rgba(138,90,0,0.13);
+  --seg-bg: #eceef2;
+  --field-bg: #eceff3;
+  --field-dot: rgba(0,0,0,0.19);
+  --field-mark: rgba(0,0,0,0.15);
+  --radius-sm: 10px; --radius-md: 14px; --radius-lg: 16px; --radius-pill: 999px; --radius-seg: 12px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08); --shadow-soft: 0 1px 2px rgba(0,0,0,0.06); --blur: none;
   --ease: cubic-bezier(0.2,0,0,1);
-  --ease-fast: cubic-bezier(0.2,0,0,1);
   --nav-bg: #ffffff;
 }
 
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { height: 100%; }
+/* Lighter effects: no blur, no shadows. For older/slower GPUs. */
+[data-fx="lite"] { --blur: none; --shadow: none; --shadow-soft: none; }
+[data-fx="lite"] .page { animation: none; }
+
+/* ===================================================================
+   BASE
+=================================================================== */
+*, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
+/* The document itself never scrolls. The app is a fixed-height column: one inner scroller plus the
+   nav at the bottom. That is what keeps the nav still when you pull down or fling past an edge,
+   because there is no page-level overscroll left to drag it around. */
+html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; }
 body {
-  background: var(--bg);
+  background-color: var(--bg);
   background-image: var(--bg-image);
   background-attachment: fixed;
   color: var(--on-surface);
-  font-family: var(--font);
-  margin: 0;
+  font: 15px/1.45 var(--font);
+  -webkit-text-size-adjust: 100%;
   transition: background-color 300ms var(--ease), color 300ms var(--ease);
 }
+h1, h2, h3, h4, p, ul, dl, dd { margin: 0; padding: 0; }
+ul { list-style: none; }
+button { font-family: inherit; color: inherit; touch-action: manipulation; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
-.app { display: flex; flex-direction: column; min-height: 100vh; }
+.app { display: flex; flex-direction: column; height: 100%; max-width: var(--maxw); margin: 0 auto; }
+.scroller { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: none; -webkit-overflow-scrolling: touch; }
 
-.topbar { padding: 20px 20px 8px; flex-shrink: 0; }
-.topbar h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.3px; margin: 0; }
+.topbar { display: flex; align-items: center; padding: 16px 20px 8px; padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+.brand-mark { width: 34px; height: 34px; margin-right: 12px; flex-shrink: 0; }
+.topbar h1 { font-size: 21px; font-weight: 700; letter-spacing: -0.2px; }
+.ver-chip {
+  margin-left: auto; font-size: 12px; font-weight: 600; color: var(--on-surface-dim);
+  background: var(--seg-bg); padding: 4px 10px; border-radius: var(--radius-pill);
+}
+.ver-chip:empty { display: none; }
 
-.content { flex: 1; overflow-y: auto; padding: 8px 16px calc(var(--nav-h) + 24px); }
-
+.content { padding: 10px 16px 28px; }
 .page { animation: page-in 220ms var(--ease); }
 @keyframes page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
 .surface {
-  position: relative;
-  background: var(--surface);
-  border: 1px solid var(--surface-border);
-  border-radius: var(--radius-lg);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  box-shadow: var(--shadow);
-  margin-bottom: 14px;
+  position: relative; background: var(--surface); border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
 }
-html[data-theme="glass"] .surface { border-bottom-color: var(--surface-border-soft); }
+.section-head { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 4px; }
+.section-head h3, .section-title { font-size: 13px; font-weight: 600; color: var(--on-surface-dim); }
+.section-title { margin: 22px 4px 8px; }
+.link-btn { background: none; border: 0; padding: 6px 2px; font-size: 13px; font-weight: 600; color: var(--primary); cursor: pointer; }
+.caption { font-size: 12.5px; color: var(--on-surface-dim); margin-top: 8px; line-height: 1.5; }
 
-.section-label {
-  font-size: 13px; font-weight: 600; color: var(--on-surface-dim);
-  margin: 4px 0 10px 6px;
+/* ---- banners ---- */
+.banner {
+  padding: 14px 16px; margin-bottom: 14px; border-radius: var(--radius-md);
+  font-size: 13.5px; line-height: 1.5; border: 1px solid transparent;
 }
-
-/* ---- Home: finger selector first, start/stop integrated ---- */
-.finger-card { padding: 18px 16px 16px; }
-.finger-grid { display: flex; gap: 6px; margin-bottom: 14px; }
-button.finger {
-  flex: 1; padding: 16px 0; font-size: 19px; font-weight: 700;
-  border: none; border-radius: var(--radius-md); background: transparent;
-  color: var(--on-surface-dim); font-family: var(--font);
-  transition: background 240ms var(--ease), color 240ms var(--ease), transform 160ms var(--ease), border-radius 240ms var(--ease);
-}
-button.finger.active {
-  background: var(--primary); color: var(--on-primary);
-  box-shadow: var(--shadow-soft);
-}
-/* Expressive gets a visibly different shape when selected, not just a color change */
-html[data-theme="expressive"] button.finger.active { border-radius: 40% 60% 55% 45% / 55% 45% 55% 45%; transform: scale(1.05); }
-button.finger:active { transform: scale(0.93); }
-
-.power-btn {
-  width: 100%; padding: 16px 0; font-size: 16px; font-weight: 700;
-  border: none; border-radius: var(--radius-pill); font-family: var(--font);
-  cursor: pointer; transition: transform 150ms var(--ease), background 200ms ease;
-}
-.power-btn.start { background: var(--success); color: #06280f; }
-.power-btn.stop  { background: var(--error);   color: #380604; }
-.power-btn:active { transform: scale(0.97); }
-
-.status-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 14px 16px; font-size: 14px; color: var(--on-surface-dim);
-}
-.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; transition: background-color 200ms ease, box-shadow 200ms ease; }
-.dot.on  { background: var(--success); box-shadow: 0 0 0 5px color-mix(in srgb, var(--success) 20%, transparent); }
-.dot.off { background: var(--error);   box-shadow: 0 0 0 5px color-mix(in srgb, var(--error) 20%, transparent); }
-
-.msg { font-size: 13px; color: var(--on-surface-dim); min-height: 18px; margin: 10px 6px 0; }
-
-/* ---- Live touch-test pad ---- */
-.test-pad {
-  position: relative; height: 180px; border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--on-surface) 4%, transparent);
-  border: 1.5px dashed var(--surface-border); overflow: hidden;
-  touch-action: none;
-}
-.test-pad-hint {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  color: var(--on-surface-faint); font-size: 13px; text-align: center; padding: 0 30px;
-  transition: opacity 200ms ease; pointer-events: none;
-}
-.test-dot {
-  position: absolute; width: 40px; height: 40px; border-radius: 50%;
-  background: var(--primary); opacity: 0.85; pointer-events: none;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 8px color-mix(in srgb, var(--primary) 18%, transparent);
-  transition: left 60ms linear, top 60ms linear;
-}
-.test-pad-note {
-  font-size: 12px; color: var(--on-surface-dim); line-height: 1.5;
-  padding: 10px 4px 0;
-}
-.test-pad-note b { color: var(--on-surface); font-weight: 700; }
-
-/* ---- Logs page ---- */
-.log-toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
-.tool-btn {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 12px 0; font-size: 13px; font-weight: 600; font-family: var(--font);
-  border: 1px solid var(--surface-border); border-radius: var(--radius-md);
-  background: var(--surface); color: var(--on-surface); cursor: pointer;
-  transition: transform 150ms var(--ease), opacity 150ms ease;
-}
-.tool-btn:active { transform: scale(0.96); }
-.tool-btn svg { width: 15px; height: 15px; }
-
-.error-banner {
-  display: none; padding: 14px 16px; margin-bottom: 12px;
-  border-radius: var(--radius-md); background: color-mix(in srgb, var(--error) 16%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--error) 40%, transparent);
-  color: var(--on-surface); font-size: 13px; line-height: 1.5;
-}
-.error-banner.show { display: block; }
-
-.log-panel { padding: 14px 14px 12px; }
-.log-output {
-  background: color-mix(in srgb, var(--on-surface) 6%, transparent);
-  border-radius: var(--radius-sm); padding: 10px 12px; height: 260px; overflow-y: auto;
-  font-family: 'Roboto Mono', monospace; font-size: 11px; line-height: 1.6;
-}
-.log-line  { color: var(--on-surface-dim); white-space: pre-wrap; word-break: break-all; padding: 1px 0; }
-.log-warn  { color: var(--warn); }
-.log-error { color: var(--error); }
-.log-empty { color: var(--on-surface-faint); font-style: italic; }
-
-/* ---- Quick actions (fixed, safe commands only -- not a freeform terminal) ---- */
-.quick-actions { margin-top: 14px; }
-.quick-btn {
-  display: flex; align-items: center; justify-content: space-between; width: 100%;
-  padding: 13px 16px; margin-bottom: 8px; font-size: 13px; font-weight: 600; font-family: var(--font);
-  border: 1px solid var(--surface-border); border-radius: var(--radius-md);
-  background: var(--surface); color: var(--on-surface); cursor: pointer; text-align: left;
-  transition: transform 150ms var(--ease);
-}
-.quick-btn:active { transform: scale(0.98); }
-.quick-btn .qb-sub { font-size: 11px; color: var(--on-surface-faint); font-weight: 400; margin-top: 2px; display: block; }
-.quick-out {
-  background: color-mix(in srgb, var(--on-surface) 6%, transparent);
-  border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 4px;
-  font-family: 'Roboto Mono', monospace; font-size: 11px; color: var(--on-surface-dim);
-  white-space: pre-wrap; word-break: break-all; display: none;
-}
-.quick-out.show { display: block; }
-
-/* ---- Update banner ---- */
-.update-banner {
-  display: none; position: relative; padding: 16px 40px 16px 16px; margin-bottom: 14px;
-  border-radius: var(--radius-md); background: var(--surface); border: 1.5px solid var(--primary);
-}
-.update-banner.show { display: block; animation: page-in 260ms var(--ease); }
-.update-banner .ub-close {
-  position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; border: none;
-  border-radius: 50%; background: color-mix(in srgb, var(--on-surface) 10%, transparent);
-  color: var(--on-surface-dim); font-size: 15px; line-height: 1; cursor: pointer;
-}
-.update-banner h4 { margin: 0 0 4px; font-size: 15px; }
-.update-banner p { margin: 0 0 12px; font-size: 13px; color: var(--on-surface-dim); line-height: 1.5; }
-.update-banner .ub-btn {
-  padding: 10px 18px; border: none; border-radius: var(--radius-pill); font-weight: 700;
-  font-size: 13px; font-family: var(--font); background: var(--primary); color: var(--on-primary); cursor: pointer;
+.banner.err  { background: var(--soft-error); border-color: var(--error); }
+.banner.warn { background: var(--soft-warn);  border-color: var(--warn); }
+.banner.update { position: relative; background: var(--surface); border: 1.5px solid var(--primary); padding-right: 46px; }
+.banner.update h4 { font-size: 15px; margin-bottom: 4px; }
+.banner.update p { color: var(--on-surface-dim); margin-bottom: 12px; }
+.banner .x {
+  position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border: 0; border-radius: 50%;
+  background: var(--seg-bg); color: var(--on-surface-dim); font-size: 16px; line-height: 1; cursor: pointer;
 }
 
-/* ---- Theme page ---- */
+/* ---- buttons / switch ---- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; height: 42px; padding: 0 16px;
+  border-radius: var(--radius-pill); border: 1px solid var(--surface-border); background: var(--seg-bg);
+  font-size: 13.5px; font-weight: 600; cursor: pointer;
+  transition: transform 150ms var(--ease), background-color 200ms, color 200ms;
+}
+.btn:active { transform: scale(0.96); }
+.btn svg { width: 16px; height: 16px; margin-right: 7px; flex-shrink: 0; }
+.btn.primary { background: var(--primary); color: var(--on-primary); border-color: transparent; }
+.btn.armed { background: var(--soft-error); color: var(--error); border-color: var(--error); }
+.btn[disabled] { opacity: 0.45; cursor: default; }
+
+.switch {
+  position: relative; width: 50px; height: 30px; flex-shrink: 0; padding: 0; border: 0; border-radius: 999px;
+  background: var(--seg-bg); box-shadow: inset 0 0 0 1px var(--hairline); cursor: pointer;
+  transition: background-color 200ms;
+}
+.switch::after {
+  content: ""; position: absolute; top: 4px; left: 4px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--on-surface-dim); transition: transform 240ms var(--ease), background-color 200ms;
+}
+.switch[aria-checked="true"] { background: var(--primary); box-shadow: none; }
+.switch[aria-checked="true"]::after { transform: translateX(20px); background: var(--on-primary); }
+
+/* ===================================================================
+   HOME
+=================================================================== */
+.home-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 22px;
+  grid-template-areas: "status" "stats" "limit" "field" "recent";
+}
+.a-status { grid-area: status; } .a-limit { grid-area: limit; } .a-field { grid-area: field; }
+.a-stats { grid-area: stats; }   .a-recent { grid-area: recent; }
+
+/* status hero */
+.hero { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; row-gap: 16px; align-items: center; padding-top: 4px; }
+.hero-mark {
+  width: 68px; height: 68px; border-radius: 24px; display: flex; align-items: center; justify-content: center;
+  background: var(--soft-primary); transition: background-color 250ms, filter 250ms, opacity 250ms;
+}
+.hero-mark svg { width: 46px; height: 46px; }
+.hero.is-on   .hero-mark { background: var(--soft-success); }
+.hero.is-off  .hero-mark { background: var(--seg-bg); filter: grayscale(1); opacity: 0.75; }
+.hero.is-warn .hero-mark { background: var(--soft-warn); }
+.hero-title { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.12; }
+.hero-sub { margin-top: 5px; font-size: 14.5px; color: var(--on-surface-dim); line-height: 1.4; }
+.power {
+  grid-column: 1 / -1; height: 54px; border: 0; border-radius: var(--radius-pill); font-size: 16px; font-weight: 700;
+  cursor: pointer; transition: transform 150ms var(--ease), background-color 200ms, color 200ms;
+}
+.power:active { transform: scale(0.98); }
+.power.start { background: var(--success); color: var(--on-success); }
+.power.stop  { background: var(--seg-bg); color: var(--on-surface); box-shadow: inset 0 0 0 1px var(--surface-border); }
+.power[disabled] { opacity: 0.6; cursor: default; }
+
+/* finger limit */
+.limit-label { font-size: 13px; font-weight: 600; color: var(--on-surface-dim); margin: 0 2px 8px; }
+.seg { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); padding: 4px; background: var(--seg-bg); border-radius: var(--radius-seg); }
+.seg-thumb {
+  position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / 5);
+  border-radius: var(--thumb-radius, var(--radius-seg)); background: var(--primary); box-shadow: var(--shadow-soft);
+  transform: translateX(calc(var(--i, 1) * 100%));
+  transition: transform 280ms var(--ease), border-radius 280ms var(--ease);
+}
+.seg button {
+  position: relative; z-index: 1; height: 50px; border: 0; background: transparent; border-radius: var(--radius-seg);
+  font-size: 19px; font-weight: 700; color: var(--on-surface-dim); cursor: pointer; transition: color 200ms;
+}
+.seg button[aria-checked="true"] { color: var(--on-primary); }
+
+/* the touch field: the one bold element on the page */
+.field {
+  position: relative; height: clamp(200px, 31vh, 340px); border-radius: var(--radius-lg);
+  background: var(--field-bg); border: 1px solid var(--surface-border); box-shadow: var(--shadow-soft);
+  overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none;
+}
+.field canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.field-hint {
+  position: absolute; left: 16px; right: 16px; bottom: 14px; text-align: center; pointer-events: none;
+  font-size: 13px; color: var(--on-surface-faint); transition: opacity 200ms;
+}
+.field-readout {
+  position: absolute; top: 12px; left: 16px; display: flex; align-items: baseline; pointer-events: none;
+  font-size: 12.5px; color: var(--on-surface-dim); opacity: 0; transition: opacity 200ms;
+}
+.field-readout b { font-size: 22px; font-weight: 700; color: var(--on-surface); margin-right: 5px; font-variant-numeric: tabular-nums; }
+.field-readout span { margin-right: 14px; }
+.field.has-touch .field-readout { opacity: 1; }
+.field.has-touch .field-hint { opacity: 0; }
+.field-note {
+  position: absolute; top: 12px; right: 12px; max-width: 62%; padding: 5px 11px; border-radius: var(--radius-pill);
+  background: var(--soft-warn); color: var(--on-surface); font-size: 12px; font-weight: 600; pointer-events: none;
+}
+.legend { display: flex; flex-wrap: wrap; margin-top: 10px; font-size: 12.5px; color: var(--on-surface-dim); }
+.legend span { display: flex; align-items: center; margin: 0 18px 4px 0; }
+.legend svg { width: 20px; height: 20px; margin-right: 7px; flex-shrink: 0; }
+.legend .real { color: var(--primary); }
+
+/* stats: an inline strip with hairlines, not tiles */
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.stat { min-width: 0; padding: 2px 14px; border-left: 1px solid var(--hairline); }
+.stat:first-child { border-left: 0; padding-left: 2px; }
+.stat dd { font-size: 27px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stat dt { font-size: 12.5px; color: var(--on-surface-dim); margin-top: 3px; line-height: 1.3; }
+.stat.lead dd { color: var(--primary); }
+
+/* event rows (Home "latest" and the Logs feed share this) */
+.feed li { display: flex; align-items: flex-start; padding: 11px 0; border-top: 1px solid var(--hairline); }
+.feed li:first-child { border-top: 0; }
+.ev-ico {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; margin-right: 12px;
+  display: flex; align-items: center; justify-content: center; background: var(--seg-bg); color: var(--on-surface-dim);
+}
+.ev-ico svg { width: 17px; height: 17px; }
+.ev-caught .ev-ico { background: var(--soft-primary); color: var(--primary); }
+.ev-warn   .ev-ico { background: var(--soft-warn);    color: var(--warn); }
+.ev-err    .ev-ico { background: var(--soft-error);   color: var(--error); }
+.ev-body { min-width: 0; }
+.ev-title { font-size: 14.5px; font-weight: 600; line-height: 1.3; }
+.ev-detail { font-size: 12.5px; color: var(--on-surface-dim); margin-top: 2px; word-break: break-word; }
+.feed-empty { padding: 18px 2px; font-size: 13.5px; color: var(--on-surface-dim); }
+
+/* Tablets. Portrait stays a single, centered column (a second column would leave the
+   lower half of the screen empty); landscape gets the status on the left and a big
+   field on the right, which is where a ten-finger test actually has room. */
+@media (min-width: 760px) {
+  .content, .topbar { width: 100%; max-width: 680px; margin-left: auto; margin-right: auto; padding-left: 24px; padding-right: 24px; }
+  .field { height: clamp(260px, 38vh, 480px); }
+}
+@media (min-width: 760px) and (orientation: landscape) {
+  .content, .topbar { max-width: none; }
+  .home-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); column-gap: 30px; align-items: start;
+    grid-template-areas: "status field" "stats field" "limit field" "recent field"; }
+  .a-field { position: sticky; top: 14px; }
+  .field { height: clamp(320px, 62vh, 560px); }
+}
+
+/* ===================================================================
+   LOGS
+=================================================================== */
+.toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+.toolbar .btn { width: 100%; padding: 0 8px; white-space: nowrap; }
+.toolbar .btn.wide { grid-column: 1 / -1; height: 48px; }
+.chips { display: flex; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.chip {
+  height: 36px; padding: 0 15px; margin: 0 8px 6px 0; border-radius: var(--radius-pill);
+  border: 1px solid var(--surface-border); background: transparent; color: var(--on-surface-dim);
+  font-size: 13.5px; font-weight: 600; cursor: pointer; transition: background-color 200ms, color 200ms;
+}
+.chip[aria-pressed="true"] { background: var(--soft-primary); color: var(--primary); border-color: transparent; }
+.raw-toggle { margin: 0 0 6px auto; display: flex; align-items: center; font-size: 13px; color: var(--on-surface-dim); }
+.raw-toggle .switch { margin-left: 10px; transform: scale(0.85); transform-origin: right center; }
+.panel { padding: 6px 16px; }
+.panel .feed { height: clamp(200px, 36vh, 380px); overflow-y: auto; overscroll-behavior: contain; }
+.raw {
+  margin: 8px 0; padding: 10px 12px; height: clamp(200px, 36vh, 380px); overflow: auto; overscroll-behavior: contain; border-radius: var(--radius-sm);
+  background: var(--field-bg); font: 11px/1.65 "Roboto Mono", ui-monospace, monospace;
+}
+.raw div { white-space: pre-wrap; word-break: break-all; color: var(--on-surface-dim); }
+.raw .r-err { color: var(--error); } .raw .r-warn { color: var(--warn); } .raw .r-v { color: var(--on-surface-faint); }
+
+.tools { padding: 0 16px; }
+.tool-row { display: flex; align-items: center; padding: 14px 0; border-top: 1px solid var(--hairline); }
+.tool-row:first-child { border-top: 0; }
+.tool-text { flex: 1; min-width: 0; margin-right: 14px; }
+.tool-title { font-size: 14.5px; font-weight: 600; }
+.tool-sub { font-size: 12.5px; color: var(--on-surface-dim); margin-top: 2px; line-height: 1.45; }
+
+/* ===================================================================
+   TUNE
+=================================================================== */
+.lead { font-size: 14px; color: var(--on-surface-dim); margin: 2px 4px 14px; line-height: 1.55; }
+.group { padding: 4px 16px 6px; margin-bottom: 14px; }
+.group-title { font-size: 13px; font-weight: 600; color: var(--on-surface-dim); padding: 12px 0 0; }
+.setting { padding: 14px 0; border-top: 1px solid var(--hairline); }
+.group-title + .setting { border-top: 0; }
+.setting-head { display: flex; align-items: baseline; justify-content: space-between; }
+.setting-name { font-size: 14.5px; font-weight: 600; }
+.setting-val { font-size: 14.5px; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; margin-left: 12px; white-space: nowrap; }
+.setting-help { font-size: 12.5px; color: var(--on-surface-dim); line-height: 1.5; margin-top: 2px; }
+.setting.dirty .setting-val::before { content: "\2022\00a0"; }
+input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 34px; margin: 6px 0 0; background: transparent; }
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--hairline);
+  background: linear-gradient(to right, var(--primary) var(--pct, 0%), var(--seg-bg) var(--pct, 0%));
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 26px; height: 26px; margin-top: -10px; border-radius: 50%;
+  background: var(--primary); border: 4px solid var(--bg); box-shadow: 0 0 0 1px var(--hairline), var(--shadow-soft);
+}
+.actions { display: grid; grid-template-columns: 1fr 1.4fr; column-gap: 10px; margin-top: 4px; }
+.actions .btn { height: 48px; }
+
+/* ===================================================================
+   THEME
+=================================================================== */
 .theme-option {
-  display: flex; align-items: center; gap: 14px; padding: 14px 16px;
-  border-radius: var(--radius-md); margin-bottom: 10px; cursor: pointer;
-  border: 1px solid var(--surface-border); background: var(--surface);
-  transition: transform 150ms var(--ease);
+  display: flex; align-items: center; width: 100%; padding: 12px; margin-bottom: 10px; text-align: left; cursor: pointer;
+  border-radius: var(--radius-md); border: 1px solid var(--surface-border); background: var(--surface);
+  transition: transform 150ms var(--ease), box-shadow 200ms;
 }
-.theme-option:active { transform: scale(0.98); }
-.theme-swatch { width: 40px; height: 40px; border-radius: var(--radius-sm); flex-shrink: 0; border: 1px solid rgba(128,128,128,0.25); }
-.theme-info { flex: 1; }
+.theme-option:active { transform: scale(0.985); }
+.theme-option[aria-checked="true"] { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+.theme-preview {
+  position: relative; width: 88px; height: 58px; margin-right: 14px; flex-shrink: 0; overflow: hidden;
+  border-radius: 14px; border: 1px solid var(--surface-border);
+  background-color: var(--bg); background-image: var(--bg-image); color: var(--on-surface);
+}
+.theme-preview .tp-half { position: absolute; top: 0; bottom: 0; width: 50%; background-color: var(--bg); background-image: var(--bg-image); }
+.tp-card { position: absolute; left: 9px; right: 9px; top: 10px; height: 16px; border-radius: 8px; background: var(--surface); border: 1px solid var(--surface-border); }
+.tp-pill { position: absolute; left: 9px; bottom: 9px; width: 34px; height: 14px; border-radius: 7px; background: var(--primary); }
+.tp-dot { position: absolute; bottom: 12px; width: 8px; height: 8px; border-radius: 50%; background: var(--on-surface-faint); }
+.theme-info { flex: 1; min-width: 0; }
 .theme-name { font-size: 15px; font-weight: 600; }
-.theme-desc { font-size: 12px; color: var(--on-surface-dim); margin-top: 2px; }
-.theme-check { width: 22px; height: 22px; flex-shrink: 0; opacity: 0; transition: opacity 150ms ease; color: var(--primary); }
-.theme-option.selected .theme-check { opacity: 1; }
-.theme-option.selected { border-color: var(--primary); }
+.theme-desc { font-size: 12.5px; color: var(--on-surface-dim); margin-top: 2px; }
+.theme-check { width: 22px; height: 22px; flex-shrink: 0; margin-left: 8px; color: var(--primary); opacity: 0; transition: opacity 150ms; }
+.theme-option[aria-checked="true"] .theme-check { opacity: 1; }
+.fx-row { padding: 14px 16px; display: flex; align-items: center; }
 
-/* ---- About page ---- */
-.about-card { padding: 20px 18px; }
-.about-card h3 { font-size: 15px; margin: 0 0 8px; }
-.about-card p { font-size: 14px; line-height: 1.6; color: var(--on-surface-dim); margin: 0 0 16px; }
+/* ===================================================================
+   ABOUT
+=================================================================== */
+.about-card { padding: 20px 18px; margin-bottom: 14px; }
+.about-card h3 { font-size: 15px; margin-bottom: 6px; }
+.about-card p { font-size: 14px; line-height: 1.6; color: var(--on-surface-dim); margin-bottom: 16px; }
 .about-card p:last-child { margin-bottom: 0; }
-.author-row { display: flex; align-items: center; gap: 12px; padding-top: 4px; }
-.author-avatar {
-  width: 42px; height: 42px; border-radius: var(--radius-pill); flex-shrink: 0;
-  background: var(--primary); color: var(--on-primary);
-  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px;
-}
-.author-name { font-size: 14px; font-weight: 600; }
-.author-link { font-size: 13px; color: var(--primary); text-decoration: none; }
-.version-tag { font-size: 12px; color: var(--on-surface-faint); margin-top: 18px; }
+.about-head { display: flex; align-items: center; margin-bottom: 16px; }
+.about-head svg { width: 56px; height: 56px; margin-right: 14px; flex-shrink: 0; }
+.about-head h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.2px; }
+.about-head p { margin: 2px 0 0; font-size: 13px; }
+.author-links { display: flex; flex-direction: column; }
+.author-link { display: block; padding: 10px 0; font-size: 14px; font-weight: 600; color: var(--primary); text-decoration: none; border-top: 1px solid var(--hairline); }
+.author-link:first-child { border-top: 0; }
+.author-link small { display: block; font-size: 12.5px; font-weight: 400; color: var(--on-surface-dim); margin-top: 1px; }
 
-/* ---- Bottom nav ---- */
+/* ===================================================================
+   NAV + TOAST
+=================================================================== */
+/* Short navigation bar, Material 3 Expressive: a pill indicator that springs open behind the icon,
+   an outlined glyph when idle and a filled one when selected, a bolder label for the current tab. */
 .bottom-nav {
-  position: sticky; bottom: 0; left: 0; right: 0; height: var(--nav-h);
-  display: flex; background: var(--nav-bg); border-top: 1px solid var(--surface-border-soft);
-  backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
-  flex-shrink: 0;
+  flex: 0 0 auto; z-index: 5; display: flex;
+  height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--nav-bg); box-shadow: 0 -1px 0 var(--hairline);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
 }
 .nav-item {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  background: none; border: none; font-family: var(--font); font-size: 11px; font-weight: 600;
-  color: var(--on-surface-faint); cursor: pointer; transition: color 200ms ease, transform 150ms var(--ease);
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: none; border: 0; padding: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.1px;
+  color: var(--on-surface-dim); cursor: pointer; transition: color 200ms;
 }
-.nav-item svg { width: 22px; height: 22px; transition: transform 200ms var(--ease); }
-.nav-item.active { color: var(--primary); }
-.nav-item.active svg { transform: translateY(-2px); }
-.nav-item:active { transform: scale(0.92); }
+.nav-item .ico { position: relative; width: 64px; height: 32px; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; }
+.nav-item .ico::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; bottom: 0; border-radius: 16px;
+  background: var(--soft-primary); opacity: 0; transform: scaleX(0.35);
+  transition: transform 380ms var(--ease), opacity 140ms linear;
+}
+.nav-item .ic { position: relative; width: 24px; height: 24px; }
+.nav-item .ic-f { display: none; }
+.nav-item[aria-current="page"] { color: var(--on-surface); font-weight: 700; }
+.nav-item[aria-current="page"] .ico { color: var(--primary); }
+.nav-item[aria-current="page"] .ico::before { opacity: 1; transform: scaleX(1); }
+.nav-item[aria-current="page"] .ic-o { display: none; }
+.nav-item[aria-current="page"] .ic-f { display: block; animation: ic-pop 420ms var(--ease); }
+.nav-item:active .ico::before { opacity: 1; transform: scaleX(0.9); }
+@keyframes ic-pop { from { transform: scale(0.7); } to { transform: scale(1); } }
+.ic { display: inline-block; flex-shrink: 0; }
 
-/* Respect the OS-level "reduce motion" accessibility setting -- some
-   people have this on for real vestibular reasons, not preference.
-   Overrides every theme uniformly rather than needing per-rule handling. */
+.toast {
+  position: fixed; left: 50%; bottom: calc(var(--nav-h) + 18px + env(safe-area-inset-bottom, 0px)); z-index: 20;
+  max-width: 92vw; max-width: min(92vw, 440px); padding: 12px 18px; border-radius: var(--radius-pill);
+  background: var(--on-surface); color: var(--bg); font-size: 13.5px; font-weight: 600; text-align: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35); opacity: 0; pointer-events: none;
+  transform: translate(-50%, 12px); transition: opacity 200ms, transform 260ms var(--ease);
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.err { background: var(--error); color: var(--on-error); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important; scroll-behavior: auto !important;
   }
 }
 </style>
 </head>
 <body>
+<!-- One hidden sprite: the logo plus every icon, so each glyph exists exactly once.
+     Style: Material 3 Expressive. Rounded corners and caps on a 24px grid; navigation icons come
+     as an outlined/filled pair (outlined when idle, filled when selected); event icons are filled glyphs. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="tgl-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#5b21b6"/>
+    </linearGradient>
+    <symbol id="tg-logo" viewBox="0 0 512 512">
+      <g transform="translate(-14,-14) scale(22.5)">
+        <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" fill="url(#tgl-grad)" stroke="#3b1878" stroke-width="0.35"/>
+      </g>
+      <circle cx="193.5" cy="238.5" r="52.5" fill="none" stroke="#f5f3ff" stroke-width="11" stroke-dasharray="17.5 12.5" opacity="0.65"/>
+      <line x1="167.3" y1="212.3" x2="219.8" y2="264.8" stroke="#f5f3ff" stroke-width="11" stroke-linecap="round"/>
+      <line x1="219.8" y1="212.3" x2="167.3" y2="264.8" stroke="#f5f3ff" stroke-width="11" stroke-linecap="round"/>
+      <circle cx="298.5" cy="328.5" r="62.5" fill="none" stroke="#f5f3ff" stroke-width="11" opacity="0.55"/>
+      <circle cx="298.5" cy="328.5" r="37.5" fill="#f5f3ff"/>
+    </symbol>
+
+    <!-- ===== navigation: outlined (idle) and filled (selected) ===== -->
+    <symbol id="n-home-o" viewBox="0 0 24 24"><path d="M12 2.8L18.4 5.2C19.4 5.58 20 6.4 20 7.4V11.6C20 16.4 16.9 19.9 12.5 21.3Q12 21.45 11.5 21.3C7.1 19.9 4 16.4 4 11.6V7.4C4 6.4 4.6 5.58 5.6 5.2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="n-home-f" viewBox="0 0 24 24"><path d="M12 2.8L18.4 5.2C19.4 5.58 20 6.4 20 7.4V11.6C20 16.4 16.9 19.9 12.5 21.3Q12 21.45 11.5 21.3C7.1 19.9 4 16.4 4 11.6V7.4C4 6.4 4.6 5.58 5.6 5.2Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+
+    <mask id="m-logs"><rect width="24" height="24" fill="#fff"/><path d="M8.5 9.2h7M8.5 13h7M8.5 16.8h4" stroke="#000" stroke-width="2" stroke-linecap="round" fill="none"/></mask>
+    <symbol id="n-logs-o" viewBox="0 0 24 24"><rect x="4" y="3.5" width="16" height="17" rx="4.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8.5 9.2h7M8.5 13h7M8.5 16.8h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="n-logs-f" viewBox="0 0 24 24"><rect x="4" y="3.5" width="16" height="17" rx="4.2" fill="currentColor" stroke="currentColor" stroke-width="2" mask="url(#m-logs)"/></symbol>
+
+    <symbol id="n-tune-o" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6.5h7.5M16.5 6.5H20M4 12h2.5M11.5 12H20M4 17.5h9M18 17.5h2"/><circle cx="14" cy="6.5" r="2.5"/><circle cx="9" cy="12" r="2.5"/><circle cx="15.5" cy="17.5" r="2.5"/></symbol>
+    <symbol id="n-tune-f" viewBox="0 0 24 24"><path d="M4 6.5h7M17 6.5H20M4 12h2M12 12H20M4 17.5h8.5M18.5 17.5H20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="6.5" r="3.2" fill="currentColor"/><circle cx="9" cy="12" r="3.2" fill="currentColor"/><circle cx="15.5" cy="17.5" r="3.2" fill="currentColor"/></symbol>
+
+    <symbol id="n-theme-o" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17Z" fill="currentColor"/></symbol>
+    <symbol id="n-theme-f" viewBox="0 0 24 24"><path d="M12 2.5a9.5 9.5 0 0 1 0 19Z" fill="currentColor"/><path d="M12 2.5a9.5 9.5 0 0 0 0 19Z" fill="currentColor" opacity="0.38"/></symbol>
+
+    <mask id="m-info"><rect width="24" height="24" fill="#fff"/><circle cx="12" cy="8.1" r="1.35" fill="#000"/><path d="M12 11.4v5.1" stroke="#000" stroke-width="2.2" stroke-linecap="round" fill="none"/></mask>
+    <symbol id="n-about-o" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="8.1" r="1.25" fill="currentColor"/><path d="M12 11.4v5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="n-about-f" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="currentColor" mask="url(#m-info)"/></symbol>
+
+    <!-- ===== events: filled glyphs ===== -->
+    <symbol id="e-burst" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7.4" r="2.9"/><circle cx="7" cy="16.4" r="2.9"/><circle cx="17" cy="16.4" r="2.9"/></symbol>
+    <mask id="m-stuck"><rect width="24" height="24" fill="#fff"/><path d="M9.6 8.7v6.6M14.4 8.7v6.6" stroke="#000" stroke-width="2.3" stroke-linecap="round" fill="none"/></mask>
+    <symbol id="e-stuck" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.2" fill="currentColor" mask="url(#m-stuck)"/></symbol>
+    <mask id="m-fail"><rect width="24" height="24" fill="#fff"/><path d="M12 10v3.9l2.5 1.6" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></mask>
+    <symbol id="e-failsafe" viewBox="0 0 24 24"><circle cx="12" cy="13.6" r="7.9" fill="currentColor" mask="url(#m-fail)"/><path d="M9.5 3h5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="e-wake" viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4C7.58 4 4.01 7.58 4.01 12S7.58 20 12 20c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35Z" fill="currentColor"/></symbol>
+    <symbol id="e-start" viewBox="0 0 24 24"><path d="M8 6.1v11.8c0 .9 1 1.45 1.76.96l9.1-5.9c.7-.45.7-1.47 0-1.92l-9.1-5.9C9 4.65 8 5.2 8 6.1Z" fill="currentColor"/></symbol>
+    <symbol id="e-stop" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.8" fill="currentColor"/></symbol>
+    <mask id="m-warn"><rect width="24" height="24" fill="#fff"/><path d="M12 9.5v4.1" stroke="#000" stroke-width="2.2" stroke-linecap="round" fill="none"/><circle cx="12" cy="16.5" r="1.2" fill="#000"/></mask>
+    <symbol id="e-problem" viewBox="0 0 24 24"><path d="M12 3.4c.55 0 1.05.29 1.33.76l7.6 12.9c.58.99-.13 2.24-1.33 2.24H4.4c-1.2 0-1.91-1.25-1.33-2.24l7.6-12.9c.28-.47.78-.76 1.33-.76Z" fill="currentColor" mask="url(#m-warn)"/></symbol>
+    <symbol id="e-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.2" fill="currentColor" mask="url(#m-info)"/></symbol>
+
+    <!-- ===== toolbar ===== -->
+    <symbol id="t-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="3"/><path d="M15.5 8.5V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v5.5a3 3 0 0 0 3 3h1.5"/></symbol>
+    <symbol id="t-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10.5m0 0l-4-4m4 4l4-4"/><path d="M5 18.5h14"/></symbol>
+    <symbol id="t-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 7h15M9.5 7V5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v2"/><path d="M6.5 7l.8 11.2a2 2 0 0 0 2 1.8h5.4a2 2 0 0 0 2-1.8L17.5 7"/></symbol>
+  </defs>
+</svg>
 <div class="app">
 
-  <div class="topbar">
+  <div class="scroller" id="scroller">
+
+  <header class="topbar">
+    <svg class="brand-mark" aria-hidden="true"><use href="#tg-logo"/></svg>
     <h1>TouchGuard</h1>
-  </div>
+    <span class="ver-chip" id="ver-chip"></span>
+  </header>
 
-  <div class="content">
+  <main class="content">
 
-    <div class="update-banner" id="update-banner">
-      <button class="ub-close" id="ub-close">&times;</button>
-      <h4 id="ub-title">Update available</h4>
-      <p id="ub-summary"></p>
-      <button class="ub-btn" id="ub-update-btn">View update</button>
+    <div class="banner warn" id="bridge-banner" hidden>
+      This page talks to your root manager, and it isn't answering. Open TouchGuard from the module list inside your root manager (KernelSU, APatch or similar) instead of a browser.
     </div>
 
+    <div class="banner update" id="update-banner" hidden>
+      <button class="x" id="ub-close" aria-label="Dismiss this update notice">&times;</button>
+      <h4 id="ub-title">Update available</h4>
+      <p id="ub-summary"></p>
+      <button class="btn primary" id="ub-update-btn">View update</button>
+    </div>
+
+    <!-- ================= HOME ================= -->
     <section class="page" id="page-home" data-page="home">
-      <div class="surface finger-card">
-        <div class="section-label" style="margin-left:0;">Allow up to</div>
-        <div class="finger-grid" id="grid"></div>
-        <button class="power-btn" id="power-btn">&hellip;</button>
-      </div>
-      <div class="surface status-row" id="status-row">
-        <span class="dot" id="status-dot"></span>
-        <span id="status-text">checking status&hellip;</span>
-      </div>
-      <div class="surface" style="padding: 16px 16px 14px;">
-        <div class="section-label" style="margin-left:0;">Live test</div>
-        <div class="test-pad" id="test-pad">
-          <div class="test-pad-hint" id="test-pad-hint">Tap or drag with a few fingers &mdash; every dot here is a real touch that already made it through</div>
+      <div class="home-grid">
+
+        <div class="a-status">
+          <div class="hero is-loading" id="hero">
+            <div class="hero-mark"><svg aria-hidden="true"><use href="#tg-logo"/></svg></div>
+            <div>
+              <h2 class="hero-title" id="hero-title" aria-live="polite">Checking&hellip;</h2>
+              <p class="hero-sub" id="hero-sub">&nbsp;</p>
+            </div>
+            <button class="power" id="power-btn" disabled>&hellip;</button>
+          </div>
         </div>
-        <div class="test-pad-note">A blocked ghost touch never reaches this pad at all &mdash; that's the filter working, before Android even sees it happen. <b><span id="block-counter">0</span> caught</b> so far.</div>
+
+        <div class="a-limit">
+          <div class="limit-label" id="limit-label">Allow up to</div>
+          <div class="seg" id="seg" role="radiogroup" aria-labelledby="limit-label" style="--i:1">
+            <span class="seg-thumb" aria-hidden="true"></span>
+          </div>
+          <p class="caption" id="limit-help"></p>
+        </div>
+
+        <div class="a-field">
+          <div class="field" id="field">
+            <canvas id="field-cv" role="img" aria-label="Touch test area. Fingers you place here are drawn as they arrive."></canvas>
+            <div class="field-readout" aria-hidden="true">
+              <b id="fd-now">0</b><span>down</span>
+              <b id="fd-peak">0</b><span>most at once</span>
+            </div>
+            <div class="field-note" id="field-note" hidden>Filter is off, so everything gets through</div>
+            <div class="field-hint" id="field-hint">Touch here to test</div>
+          </div>
+          <div class="legend" aria-hidden="true">
+            <span class="real">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.55"/><circle cx="12" cy="12" r="5" fill="currentColor"/></svg>
+              <i style="font-style:normal;color:var(--on-surface-dim)">Real touch, passes through</i>
+            </span>
+            <span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-dasharray="3.2 2.6" opacity="0.7"/><path d="M8.6 8.6l6.8 6.8M15.4 8.6l-6.8 6.8"/></svg>
+              Ghost touch, dropped before apps see it
+            </span>
+          </div>
+        </div>
+
+        <div class="a-stats">
+          <dl class="stats">
+            <div class="stat lead"><dd id="st-caught">0</dd><dt>Ghosts caught</dt></div>
+            <div class="stat"><dd id="st-bursts">0</dd><dt>Bursts</dt></div>
+            <div class="stat"><dd id="st-stuck">0</dd><dt>Stuck touches</dt></div>
+          </dl>
+          <p class="caption">From the log, which resets at boot and on Start.</p>
+        </div>
+
+        <div class="a-recent">
+          <div class="section-head">
+            <h3>Latest activity</h3>
+            <button class="link-btn" id="see-all">Open logs</button>
+          </div>
+          <ul class="feed" id="recent"><li class="feed-empty">Nothing yet.</li></ul>
+        </div>
+
       </div>
-      <div class="msg" id="msg">&nbsp;</div>
     </section>
 
+    <!-- ================= LOGS ================= -->
     <section class="page" id="page-logs" data-page="logs" hidden>
-      <div class="error-banner" id="error-banner"></div>
-      <div class="log-toolbar">
-        <button class="tool-btn" id="clear-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
-          Clear
-        </button>
-        <button class="tool-btn" id="save-btn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m0 0l-4-4m4 4l4-4M4 19h16"/></svg>
-          Save to file
-        </button>
-      </div>
-      <div class="surface log-panel">
-        <div class="log-output" id="log-output"><div class="log-empty">loading&hellip;</div></div>
-      </div>
-      <div class="msg" id="log-msg">&nbsp;</div>
+      <div class="banner err" id="error-banner" hidden></div>
 
-      <div class="quick-actions">
-        <div class="section-label" style="margin-left:0;">Quick actions</div>
-        <button class="quick-btn" data-cmd="verbose-on">
-          <span>Turn on verbose logging<span class="qb-sub">Logs every touch lifecycle event, for chasing rare bugs</span></span>
+      <div class="toolbar">
+        <button class="btn primary wide" id="btn-report">
+          <svg class="ic" aria-hidden="true"><use href="#t-copy"/></svg>
+          <span class="lbl">Copy support report</span>
         </button>
-        <button class="quick-btn" data-cmd="verbose-off">
-          <span>Turn off verbose logging<span class="qb-sub">Back to normal log detail</span></span>
+        <button class="btn" id="btn-save">
+          <svg class="ic" aria-hidden="true"><use href="#t-download"/></svg>
+          <span class="lbl">Save log</span>
         </button>
-        <button class="quick-btn" data-cmd="restart">
-          <span>Restart the filter<span class="qb-sub">Kills and lets the supervisor bring it back fresh</span></span>
+        <button class="btn" id="btn-clear">
+          <svg class="ic" aria-hidden="true"><use href="#t-trash"/></svg>
+          <span class="lbl">Clear</span>
         </button>
-        <div class="quick-out" id="quick-out"></div>
+      </div>
+
+      <div class="chips">
+        <button class="chip" id="chip-all" aria-pressed="true">Everything</button>
+        <button class="chip" id="chip-caught" aria-pressed="false">Caught</button>
+        <button class="chip" id="chip-problems" aria-pressed="false">Problems</button>
+        <div class="raw-toggle">Raw lines <button class="switch" id="raw-switch" role="switch" aria-checked="false" aria-label="Show raw log lines"></button></div>
+      </div>
+
+      <div class="surface panel">
+        <ul class="feed" id="feed"><li class="feed-empty">Loading&hellip;</li></ul>
+        <div class="raw" id="raw" hidden></div>
+      </div>
+      <p class="caption" id="log-caption">&nbsp;</p>
+
+      <h3 class="section-title">Tools</h3>
+      <div class="surface tools">
+        <div class="tool-row">
+          <div class="tool-text">
+            <div class="tool-title">Verbose logging</div>
+            <div class="tool-sub">Records every touch going down and up. Useful for chasing a rare bug, but it makes the log long.</div>
+          </div>
+          <button class="switch" id="sw-verbose" role="switch" aria-checked="false" aria-label="Verbose logging"></button>
+        </div>
+        <div class="tool-row">
+          <div class="tool-text">
+            <div class="tool-title">Restart the filter</div>
+            <div class="tool-sub">Stops it and lets the supervisor bring it back fresh.</div>
+          </div>
+          <button class="btn" id="btn-restart"><span class="lbl">Restart</span></button>
+        </div>
+        <div class="tool-row">
+          <div class="tool-text">
+            <div class="tool-title">Refresh touch</div>
+            <div class="tool-sub">Turns the screen off and on, like pressing power twice. Can wake up a touch panel that froze. You may need to unlock afterwards.</div>
+          </div>
+          <button class="btn" id="btn-refresh-touch"><span class="lbl">Refresh</span></button>
+        </div>
       </div>
     </section>
 
+    <!-- ================= TUNE ================= -->
+    <section class="page" id="page-tune" data-page="tune" hidden>
+      <p class="lead">The defaults suit most devices. Change these only when you're chasing something specific, like long presses ending too soon or ghosts stuck near the status bar.</p>
+      <div id="tune-groups"></div>
+      <div class="actions">
+        <button class="btn" id="btn-tune-reset">Reset to defaults</button>
+        <button class="btn primary" id="btn-tune-apply" disabled>Save and restart filter</button>
+      </div>
+      <p class="caption" id="tune-running">&nbsp;</p>
+    </section>
+
+    <!-- ================= THEME ================= -->
     <section class="page" id="page-theme" data-page="theme" hidden>
-      <div class="section-label" style="margin-left:0;">Appearance</div>
-      <div id="theme-list"></div>
+      <h3 class="section-title" style="margin-top:6px">Appearance</h3>
+      <div id="theme-list" role="radiogroup" aria-label="Theme"></div>
+      <h3 class="section-title">Performance</h3>
+      <div class="surface fx-row">
+        <div class="tool-text">
+          <div class="tool-title">Lighter effects</div>
+          <div class="tool-sub">Turns off background blur and shadows. Try it if the page feels sluggish on an older device.</div>
+        </div>
+        <button class="switch" id="sw-fx" role="switch" aria-checked="false" aria-label="Lighter effects"></button>
+      </div>
     </section>
 
+    <!-- ================= ABOUT ================= -->
     <section class="page" id="page-about" data-page="about" hidden>
       <div class="surface about-card">
+        <div class="about-head">
+          <svg aria-hidden="true"><use href="#tg-logo"/></svg>
+          <div>
+            <h2>TouchGuard</h2>
+            <p id="version-label">Ghost touch filter</p>
+          </div>
+        </div>
         <h3>What it does</h3>
         <p>TouchGuard watches your screen for touches that don't add up &mdash; several fingers appearing out of nowhere, or one spot getting stuck &mdash; and quietly filters them out before they ever reach your apps. Everything you actually do with your fingers passes through completely untouched.</p>
         <h3>How to use it</h3>
-        <p>On the Home tab, pick the highest number of fingers you'd ever use at once &mdash; most people pick 1 or 2. Make sure the status below it shows the filter running. That's the whole job: no daily upkeep, and changing your mind later costs one tap.</p>
+        <p>On the Home tab, pick the highest number of fingers you'd ever use at once &mdash; most people pick 1 or 2 &mdash; and make sure the status at the top says the filter is on. That's the whole job: no daily upkeep, and changing your mind later costs one tap. The Tune tab is only for fixing a specific problem.</p>
       </div>
       <div class="surface about-card">
-        <div class="author-row">
-          <div class="author-avatar">S</div>
-          <div>
-            <div class="author-name">Built by Shivraj</div>
-            <a class="author-link" href="https://t.me/Shivraj_editx">Message on Telegram</a>
-          </div>
+        <h3>Built by Shivraj</h3>
+        <div class="author-links">
+          <a class="author-link" href="https://t.me/touchguard_shivrajtode">Telegram channel<small>Updates and releases</small></a>
+          <a class="author-link" href="https://t.me/touchguard_shivrajtode_chat">Discussion group<small>Questions and support</small></a>
+          <a class="author-link" href="https://t.me/Shivraj_editx">Message Shivraj directly<small>Personal chat</small></a>
         </div>
-        <div class="version-tag" id="version-label">TouchGuard</div>
       </div>
     </section>
 
-  </div>
+  </main>
 
-  <nav class="bottom-nav">
-    <button class="nav-item active" data-page="home">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/></svg>
-      Home
+  </div><!-- /scroller -->
+
+  <nav class="bottom-nav" id="nav" aria-label="Sections">
+    <button class="nav-item" data-page="home" aria-current="page">
+      <span class="ico"><svg class="ic ic-o" aria-hidden="true"><use href="#n-home-o"/></svg><svg class="ic ic-f" aria-hidden="true"><use href="#n-home-f"/></svg></span>Home
     </button>
     <button class="nav-item" data-page="logs">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
-      Logs
+      <span class="ico"><svg class="ic ic-o" aria-hidden="true"><use href="#n-logs-o"/></svg><svg class="ic ic-f" aria-hidden="true"><use href="#n-logs-f"/></svg></span>Logs
+    </button>
+    <button class="nav-item" data-page="tune">
+      <span class="ico"><svg class="ic ic-o" aria-hidden="true"><use href="#n-tune-o"/></svg><svg class="ic ic-f" aria-hidden="true"><use href="#n-tune-f"/></svg></span>Tune
     </button>
     <button class="nav-item" data-page="theme">
-      <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8" fill="none"/><path d="M12 4a8 8 0 010 16z" fill="currentColor" stroke="none"/></svg>
-      Theme
+      <span class="ico"><svg class="ic ic-o" aria-hidden="true"><use href="#n-theme-o"/></svg><svg class="ic ic-f" aria-hidden="true"><use href="#n-theme-f"/></svg></span>Theme
     </button>
     <button class="nav-item" data-page="about">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
-      About
+      <span class="ico"><svg class="ic ic-o" aria-hidden="true"><use href="#n-about-o"/></svg><svg class="ic ic-f" aria-hidden="true"><use href="#n-about-f"/></svg></span>About
     </button>
   </nav>
 
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
-
 <script>
-const MODDIR = "/data/adb/modules/touchguard";
+(function () {
+'use strict';
+
+/* ===================================================================
+   Constants
+=================================================================== */
+const MODDIR = '/data/adb/modules/touchguard';
 const MAX_OPTION = 5;
 const THEMES = ['glass', 'expressive', 'dark', 'light', 'system'];
 const THEME_META = {
-  glass:      { name: 'Liquid Glass',       desc: 'Translucent, glossy, iOS-inspired',      swatch: 'linear-gradient(135deg, #0a84ff, #06070c)' },
-  expressive: { name: 'Material Expressive', desc: 'Bold color, playful shapes and motion', swatch: 'linear-gradient(135deg, #b389ff, #241f30)' },
-  dark:       { name: 'Dark',               desc: 'Plain and calm, easy on the eyes',       swatch: '#1e1e1e' },
-  light:      { name: 'Light',              desc: 'Clean and bright',                        swatch: '#ffffff' },
-  system:     { name: 'System default',     desc: "Follows your phone's setting",           swatch: 'linear-gradient(90deg, #ffffff 50%, #1e1e1e 50%)' },
+  glass:      { name: 'Liquid Glass',        desc: 'Translucent, glossy, iOS-inspired' },
+  expressive: { name: 'Material Expressive', desc: 'Bold color, playful shapes and motion' },
+  dark:       { name: 'Dark',                desc: 'Plain and calm, easy on the eyes' },
+  light:      { name: 'Light',               desc: 'Clean and bright' },
+  system:     { name: 'System default',      desc: "Follows your phone's setting" },
 };
+const PAGES = ['home', 'logs', 'tune', 'theme', 'about'];
+const $ = (id) => document.getElementById(id);
 
-// KernelSU-family managers expose window.ksu.exec(cmd). It's typically
-// async and resolves to something like {errno, stdout}, but handle a raw
-// string too in case this fork's bridge shapes it differently.
+/* ===================================================================
+   Root shell bridge. KernelSU-family managers expose window.ksu.exec(cmd).
+   It's typically async and resolves to {errno, stdout}, but a raw string
+   is handled too in case a fork shapes it differently. (Unchanged.)
+=================================================================== */
 async function runShell(cmd) {
   if (!window.ksu || typeof window.ksu.exec !== 'function') {
     throw new Error('window.ksu.exec is not available in this WebView');
@@ -504,339 +833,860 @@ async function runShell(cmd) {
   if (result && typeof result.stdout === 'string') return result.stdout;
   return String(result);
 }
+function withDir(s) { return s.replace(/@M@/g, MODDIR); }
 
-/* ================= Navigation ================= */
-const PAGES = ['home', 'logs', 'theme', 'about'];
-function showPage(name) {
-  for (const p of PAGES) document.getElementById('page-' + p).hidden = (p !== name);
-  document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.page === name));
-  if (name === 'logs') renderErrorBanner();
+/* ===================================================================
+   Small helpers
+=================================================================== */
+function fmtDuration(sec) {
+  if (!(sec >= 0)) return '\u2013';
+  sec = Math.floor(sec);
+  const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+  if (d) return d + 'd\u00a0' + h + 'h';
+  if (h) return h + 'h\u00a0' + m + 'm';
+  if (m) return m + 'm';
+  return sec + 's';
 }
-document.querySelectorAll('.nav-item').forEach(b => b.onclick = () => showPage(b.dataset.page));
+function fmtMs(ms) {
+  if (ms >= 1000) return (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000)) + ' s';
+  return ms + ' ms';
+}
+function ordinal(n) {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return n + 'th';
+  return n + (['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+}
+function toNum(v) { const n = parseInt(v, 10); return isNaN(n) ? 0 : n; }
 
-/* ================= Theme ================= */
+let toastTimer = 0;
+function toast(text, kind) {
+  const t = $('toast');
+  t.textContent = text;
+  t.className = 'toast show' + (kind ? ' ' + kind : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.className = 'toast'; }, 3400);
+}
+
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); return true; }
+  } catch (e) { /* fall through to the older route */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return !!ok;
+  } catch (e) { return false; }
+}
+
+// Two-tap confirmation for actions with a cost: first tap arms the button, second runs it.
+function confirmTap(btn, armedLabel, action) {
+  const lbl = btn.querySelector('.lbl');
+  const orig = lbl.textContent;
+  let t = 0;
+  function disarm() { clearTimeout(t); btn.classList.remove('armed'); lbl.textContent = orig; btn.dataset.armed = ''; }
+  btn.addEventListener('click', function () {
+    if (btn.dataset.armed === '1') { disarm(); action(); return; }
+    btn.dataset.armed = '1'; btn.classList.add('armed'); lbl.textContent = armedLabel;
+    t = setTimeout(disarm, 4000);
+  });
+}
+
+/* ===================================================================
+   Theme (+ lighter effects). The saved choice is cached in localStorage so
+   the right theme paints on the very first frame; theme.conf stays the
+   source of truth and wins once it has been read.
+=================================================================== */
+function resolveTheme(choice) {
+  if (choice !== 'system') return choice;
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
 function applyTheme(choice) {
-  const resolved = choice === 'system'
-    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-    : choice;
-  document.documentElement.setAttribute('data-theme', resolved);
-  document.documentElement.setAttribute('data-theme-choice', choice);
-  document.querySelectorAll('.theme-option').forEach(el => el.classList.toggle('selected', el.dataset.theme === choice));
+  const root = document.documentElement;
+  root.setAttribute('data-theme', resolveTheme(choice));
+  root.setAttribute('data-theme-choice', choice);
+  document.querySelectorAll('.theme-option').forEach(function (el) {
+    el.setAttribute('aria-checked', el.dataset.choice === choice ? 'true' : 'false');
+  });
+  try { localStorage.setItem('tg-theme', choice); } catch (e) {}
+  fieldColors(); fieldDraw();
 }
-
 async function setTheme(choice) {
   applyTheme(choice);
-  try { await runShell(`echo ${choice} > ${MODDIR}/theme.conf`); } catch (e) { /* not fatal */ }
+  try { await runShell('echo ' + choice + ' > ' + MODDIR + '/theme.conf'); } catch (e) { /* not fatal */ }
 }
-
 async function loadTheme() {
-  let saved = 'glass';
   try {
-    const raw = (await runShell(`cat ${MODDIR}/theme.conf`)).trim();
-    if (THEMES.includes(raw)) saved = raw;
-  } catch (e) { /* file may not exist on first run yet -- default stands */ }
-  applyTheme(saved);
+    const raw = (await runShell('cat ' + MODDIR + '/theme.conf')).trim();
+    if (THEMES.indexOf(raw) !== -1) applyTheme(raw);
+  } catch (e) { /* first run: no file yet, the cached/default theme stands */ }
+}
+const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+if (mq) {
+  const onScheme = function () { if (document.documentElement.getAttribute('data-theme-choice') === 'system') applyTheme('system'); };
+  if (mq.addEventListener) mq.addEventListener('change', onScheme); else if (mq.addListener) mq.addListener(onScheme);
 }
 
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-  if (document.documentElement.getAttribute('data-theme-choice') === 'system') applyTheme('system');
+function applyFx(mode) {
+  document.documentElement.setAttribute('data-fx', mode === 'lite' ? 'lite' : 'full');
+  $('sw-fx').setAttribute('aria-checked', mode === 'lite' ? 'true' : 'false');
+  try { localStorage.setItem('tg-fx', mode === 'lite' ? 'lite' : 'full'); } catch (e) {}
+}
+async function loadFx() {
+  try {
+    const raw = (await runShell('cat ' + MODDIR + '/effects.conf 2>/dev/null')).trim();
+    if (raw === 'lite' || raw === 'full') applyFx(raw);
+  } catch (e) {}
+}
+$('sw-fx').onclick = async function () {
+  const next = $('sw-fx').getAttribute('aria-checked') === 'true' ? 'full' : 'lite';
+  applyFx(next);
+  try { await runShell('echo ' + next + ' > ' + MODDIR + '/effects.conf'); } catch (e) {}
+};
+
+function previewHTML(key) {
+  if (key === 'system') {
+    return '<div class="theme-preview">' +
+      '<div class="tp-half" data-theme="light" style="left:0"><div class="tp-card"></div><div class="tp-pill"></div></div>' +
+      '<div class="tp-half" data-theme="dark" style="right:0"><div class="tp-card" style="left:6px"></div><div class="tp-pill" style="left:auto;right:9px"></div></div>' +
+      '</div>';
+  }
+  return '<div class="theme-preview" data-theme="' + key + '"><div class="tp-card"></div><div class="tp-pill"></div>' +
+    '<div class="tp-dot" style="right:34px"></div><div class="tp-dot" style="right:21px"></div><div class="tp-dot" style="right:9px"></div></div>';
+}
+(function buildThemeList() {
+  const list = $('theme-list');
+  THEMES.forEach(function (key) {
+    const meta = THEME_META[key];
+    const el = document.createElement('button');
+    el.className = 'theme-option'; el.dataset.choice = key;
+    el.setAttribute('role', 'radio'); el.setAttribute('aria-checked', 'false');
+    el.innerHTML = previewHTML(key) +
+      '<span class="theme-info"><span class="theme-name" style="display:block">' + meta.name + '</span><span class="theme-desc" style="display:block">' + meta.desc + '</span></span>' +
+      '<svg class="theme-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+    el.onclick = function () { setTheme(key); };
+    list.appendChild(el);
+  });
+})();
+
+/* ===================================================================
+   Navigation
+=================================================================== */
+let currentPage = 'home';
+function showPage(name) {
+  currentPage = name;
+  PAGES.forEach(function (p) { $('page-' + p).hidden = (p !== name); });
+  document.querySelectorAll('.nav-item').forEach(function (b) {
+    if (b.dataset.page === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  $('scroller').scrollTop = 0;
+  if (name === 'home') { refreshStatus(); setTimeout(fieldResize, 0); }
+  if (name === 'logs') { renderErrorBanner(); refreshLog(); }
+  if (name === 'tune') loadTune();
+}
+document.querySelectorAll('.nav-item').forEach(function (b) { b.onclick = function () { showPage(b.dataset.page); }; });
+$('see-all').onclick = function () { showPage('logs'); };
+
+/* ===================================================================
+   Event parsing. The daemon's own lines carry no timestamps (only the
+   supervisor's lines do), so this only ever claims order and counts,
+   never "3 minutes ago".
+=================================================================== */
+const ICON = {};
+['burst', 'stuck', 'failsafe', 'wake', 'start', 'stop', 'problem', 'info'].forEach(function (k) {
+  ICON[k] = '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#e-' + k + '"/></svg>';
 });
 
-const themeList = document.getElementById('theme-list');
-for (const key of THEMES) {
-  const meta = THEME_META[key];
-  const el = document.createElement('div');
-  el.className = 'theme-option';
-  el.dataset.theme = key;
-  el.innerHTML =
-    '<div class="theme-swatch" style="background:' + meta.swatch + '"></div>' +
-    '<div class="theme-info"><div class="theme-name">' + meta.name + '</div><div class="theme-desc">' + meta.desc + '</div></div>' +
-    '<svg class="theme-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
-  el.onclick = () => setTheme(key);
-  themeList.appendChild(el);
+function parseLine(line) {
+  let m;
+  if (/^\[v\]/.test(line)) return { kind: 'verbose' };
+  if ((m = line.match(/^(\d+) visible fingers \(max allowed (\d+)\), blocking until full release/))) {
+    return { kind: 'burst', tone: 'caught', icon: 'burst', title: 'Blocked a burst of ' + m[1] + ' fingers',
+             detail: 'Limit is ' + m[2] + ', so touches were dropped until you lifted' };
+  }
+  if ((m = line.match(/^slot (\d+) stale after (\d+)ms with no movement( \(top zone\))?, hiding it/))) {
+    return { kind: 'stuck', tone: 'caught', icon: 'stuck', title: 'Hid a stuck touch' + (m[3] ? ' near the top of the screen' : ''),
+             detail: 'It hadn\u2019t moved for ' + fmtMs(+m[2]) };
+  }
+  if ((m = line.match(/^blocked for over (\d+)ms, forcing clear as a failsafe/))) {
+    return { kind: 'failsafe', tone: 'warn', icon: 'failsafe', title: 'Released a block that ran too long',
+             detail: 'The failsafe lets go after ' + fmtMs(+m[1]) + ' so touch can\u2019t stay blocked forever' };
+  }
+  if ((m = line.match(/^screen woke but no touch data arrived after (\d+)ms/))) {
+    return { kind: 'wake', tone: 'warn', icon: 'wake', title: 'Touch didn\u2019t wake up with the screen',
+             detail: 'Restarted the filter to resync with the touch driver (waited ' + fmtMs(+m[1]) + ')' };
+  }
+  if ((m = line.match(/^(.*?): starting touchguard on (\S+)/))) {
+    return { kind: 'start', tone: 'info', icon: 'start', title: 'Filter started', detail: m[2] + ', ' + m[1] };
+  }
+  if ((m = line.match(/^(.*?): daemon exited, restarting/))) {
+    return { kind: 'restart', tone: 'info', icon: 'wake', title: 'Filter restarted', detail: m[1] };
+  }
+  if ((m = line.match(/^(.*?): disable flag found, stopping supervisor/)) || /disable flag present, exiting cleanly/.test(line)) {
+    return { kind: 'stop', tone: 'info', icon: 'stop', title: 'Filter stopped', detail: m ? m[1] : '' };
+  }
+  if (/^touchguard stopped$/.test(line)) return { kind: 'quiet' };
+  if ((m = line.match(/^touchguard active on (\S+): max (\d+) finger/))) {
+    const st = line.match(/stale timeout (\d+)ms/);
+    return { kind: 'config', tone: 'info', icon: 'info', title: 'Settings loaded',
+             detail: m[2] + ' finger limit' + (st ? ', stuck after ' + fmtMs(+st[1]) : '') };
+  }
+  if (/EVIOCGRAB failed: Device or resource busy/.test(line)) {
+    return { kind: 'problem', tone: 'err', icon: 'problem', title: 'Another process is holding the touchscreen',
+             detail: 'The filter couldn\u2019t take control of it. If this repeats, another touch tool or a second copy of the filter may be running.' };
+  }
+  if (/EVIOCGRAB failed/.test(line))        return { kind: 'problem', tone: 'err', icon: 'problem', title: 'Couldn\u2019t take control of the touchscreen', detail: line };
+  if (/uinput/.test(line))                  return { kind: 'problem', tone: 'err', icon: 'problem', title: 'Couldn\u2019t create the virtual touchscreen', detail: line };
+  if (/not found among input devices/.test(line)) return { kind: 'problem', tone: 'err', icon: 'problem', title: 'Touchscreen not found', detail: line.replace(/^.*?: /, '') };
+  if (/binary missing|touchguard\.conf missing|TS_NAME not resolved/.test(line)) return { kind: 'problem', tone: 'err', icon: 'problem', title: 'The filter can\u2019t start', detail: line.replace(/^.*?: /, '') };
+  if (/cannot open|poll error|read ended|^usage:/.test(line)) return { kind: 'problem', tone: 'err', icon: 'problem', title: 'Lost the touchscreen connection', detail: line };
+  return { kind: 'other', tone: 'info', icon: 'info', title: line, detail: '' };
 }
 
-/* ================= Home: fingers + daemon control ================= */
-const grid = document.getElementById('grid');
-const statusText = document.getElementById('status-text');
-const statusDot = document.getElementById('status-dot');
-const msgEl = document.getElementById('msg');
-const powerBtn = document.getElementById('power-btn');
-const logOutput = document.getElementById('log-output');
-const logMsg = document.getElementById('log-msg');
-const errorBanner = document.getElementById('error-banner');
+function eventsFromLines(lines, skip) {
+  const out = [];
+  for (const line of lines) {
+    const ev = parseLine(line);
+    if (ev.kind === 'verbose' || ev.kind === 'quiet' || (skip && skip.indexOf(ev.kind) !== -1)) continue;
+    ev.raw = line;
+    out.push(ev);
+  }
+  return out;
+}
 
-for (let n = 1; n <= MAX_OPTION; n++) {
-  const b = document.createElement('button');
-  b.className = 'finger';
-  b.textContent = n;
-  b.id = 'btn-' + n;
-  b.onclick = () => setMaxFingers(n);
-  grid.appendChild(b);
+// Newest first. A ghost storm can log dozens of identical lines in a row, so
+// identical neighbours collapse into one row with a count.
+function renderEvents(ul, events, emptyText, limit) {
+  ul.innerHTML = '';
+  if (!events.length) {
+    const li = document.createElement('li'); li.className = 'feed-empty'; li.textContent = emptyText; ul.appendChild(li); return;
+  }
+  const rows = [];
+  for (let i = events.length - 1; i >= 0; i--) {
+    const ev = events[i], last = rows[rows.length - 1];
+    if (last && last.title === ev.title && last.detail === ev.detail && last.kind === ev.kind) last.count++;
+    else rows.push({ kind: ev.kind, tone: ev.tone, icon: ev.icon, title: ev.title, detail: ev.detail, count: 1 });
+  }
+  rows.slice(0, limit || 100).forEach(function (r) {
+    const li = document.createElement('li');
+    li.className = 'ev-' + (r.tone === 'caught' ? 'caught' : r.tone === 'warn' ? 'warn' : r.tone === 'err' ? 'err' : 'info');
+    const ico = document.createElement('span'); ico.className = 'ev-ico'; ico.innerHTML = ICON[r.icon] || ICON.info;
+    const body = document.createElement('div'); body.className = 'ev-body';
+    const t = document.createElement('div'); t.className = 'ev-title'; t.textContent = r.title + (r.count > 1 ? '  \u00d7' + r.count : '');
+    body.appendChild(t);
+    if (r.detail) { const d = document.createElement('div'); d.className = 'ev-detail'; d.textContent = r.detail; body.appendChild(d); }
+    li.appendChild(ico); li.appendChild(body); ul.appendChild(li);
+  });
+}
+
+/* ===================================================================
+   Home: status, finger limit, start/stop
+=================================================================== */
+const S = {
+  loaded: false, running: false, fingers: 2, binOk: true, enabled: false, disabled: false,
+  burst: 0, stuck: 0, failsafe: 0, starts: 0, up: null, verbose: 0, recent: [],
+};
+let noBridge = false;
+let busy = null, busyTimer = 0;
+// Bumped by every state-changing action (a finger-count pick, Start, Stop, Tune, verbose)
+// the instant it's triggered, before any await. An already in-flight refreshStatus()
+// captured an earlier value; on resolving it checks it's still current and discards
+// itself if a newer action happened meanwhile, instead of overwriting newer state with
+// an answer that was already outdated when it was asked for. (Fix from v3.8, kept.)
+let stateGeneration = 0;
+
+function setBusy(kind) {
+  busy = kind; clearTimeout(busyTimer);
+  if (kind) busyTimer = setTimeout(function () { busy = null; renderHome(); }, 9000);
+  renderHome();
+}
+
+const STATUS_CMD = withDir([
+  ': tg-status',
+  'M=@M@; L=$M/touchguard.log',
+  'P=$(pgrep -x touchguard | head -n 1); U=""',
+  'if [ -n "$P" ]; then set -- $(cat /proc/$P/stat 2>/dev/null); S=${22}; N=$(cut -d. -f1 /proc/uptime); [ -n "$S" ] && U=$((N - S / 100)); fi',
+  'echo "$(cat $M/max_fingers.conf 2>/dev/null)|$P|$([ -f $M/touchguard ] && echo 1 || echo 0)|$([ -f $M/enabled ] && echo 1 || echo 0)|$([ -f /data/local/tmp/touchguard_disable ] && echo 1 || echo 0)|$(grep -c "blocking until full release" $L 2>/dev/null)|$(grep -c "hiding it" $L 2>/dev/null)|$(grep -c "forcing clear" $L 2>/dev/null)|$(grep -c "starting touchguard on" $L 2>/dev/null)|$U|$(cat $M/verbose_log.conf 2>/dev/null)"',
+  'echo "@@"',
+  'grep -E "blocking until full release|hiding it|forcing clear|screen woke|EVIOCGRAB|cannot open|uinput|not found among|daemon exited|binary missing|TS_NAME|starting touchguard|disable flag" $L 2>/dev/null | tail -n 5',
+].join('\n'));
+
+async function refreshStatus() {
+  const myGen = stateGeneration;
+  let raw;
+  try {
+    raw = await runShell(STATUS_CMD);
+  } catch (e) {
+    if (myGen !== stateGeneration) return;
+    noBridge = !window.ksu;
+    S.error = e.message; S.loaded = true; renderHome();
+    return;
+  }
+  if (myGen !== stateGeneration) return; // a newer action started while this was in flight, discard
+  noBridge = false; S.error = '';
+  const parts = raw.trim().split(/\n@@\n?/);
+  const f = (parts[0] || '').split('|');
+  S.fingers = toNum(f[0]) || 2;
+  S.running = (f[1] || '').trim().length > 0;
+  S.binOk = f[2] === '1'; S.enabled = f[3] === '1'; S.disabled = f[4] === '1';
+  S.burst = toNum(f[5]); S.stuck = toNum(f[6]); S.failsafe = toNum(f[7]); S.starts = toNum(f[8]);
+  S.up = (f[9] || '').trim() === '' ? null : toNum(f[9]);
+  S.verbose = toNum(f[10]);
+  S.recent = (parts[1] || '').split('\n').filter(function (l) { return l.trim(); });
+  S.loaded = true;
+  if (busy === 'starting' && !S.running) { /* still coming up, keep the transitional state */ }
+  else if (busy === 'stopping' && S.running) { /* still going down */ }
+  else if (busy) { busy = null; clearTimeout(busyTimer); }
+  renderHome();
+  renderTools();
+  if (currentPage === 'logs') renderErrorBanner();
+}
+
+function diagnosis() {
+  const d = [];
+  if (S.loaded && !S.binOk) d.push('The filter program itself is missing. Try reinstalling the module.');
+  if (S.loaded && S.enabled && !S.disabled && !S.running && S.binOk) d.push('The filter should be running but stopped on its own. Check the log below, or hit Start again on Home.');
+  return d;
 }
 
 function highlight(n) {
-  for (let i = 1; i <= MAX_OPTION; i++) document.getElementById('btn-' + i).classList.toggle('active', i === n);
+  const seg = $('seg');
+  seg.style.setProperty('--i', String(n - 1));
+  for (let i = 1; i <= MAX_OPTION; i++) $('btn-' + i).setAttribute('aria-checked', i === n ? 'true' : 'false');
+  $('limit-help').textContent = 'With ' + n + ', a ' + ordinal(n + 1) + ' finger counts as a ghost and touches are dropped until you lift. Most people pick 1 or 2.';
 }
 
-/* ================= Live test pad ================= */
-// Every touch reaching here has already passed the daemon's filter --
-// a blocked one, by design, never becomes a DOM event at all. This just
-// proves real touches land accurately with nothing added on top.
-const testPad = document.getElementById('test-pad');
-const testPadHint = document.getElementById('test-pad-hint');
-const padDots = new Map(); // touch identifier -> dot element
+function renderHome() {
+  const hero = $('hero'), title = $('hero-title'), sub = $('hero-sub'), btn = $('power-btn');
+  let state, t, s, label, cls, disabled = false;
+  const n = S.fingers;
+  if (noBridge) {
+    state = 'warn'; t = 'Not connected'; s = 'This page can\u2019t reach your root manager.'; label = '\u2026'; cls = 'start'; disabled = true;
+    $('bridge-banner').hidden = false;
+  } else if (!S.loaded) {
+    state = 'loading'; t = 'Checking\u2026'; s = '\u00a0'; label = '\u2026'; cls = 'start'; disabled = true;
+  } else if (busy === 'starting') {
+    state = 'on'; t = 'Starting\u2026'; s = 'No reboot needed.'; label = 'Starting\u2026'; cls = 'start'; disabled = true;
+  } else if (busy === 'stopping') {
+    state = 'off'; t = 'Stopping\u2026'; s = '\u00a0'; label = 'Stopping\u2026'; cls = 'start'; disabled = true;
+  } else if (S.running) {
+    state = 'on'; t = 'Filter is on';
+    s = 'Allowing up to ' + n + ' finger' + (n > 1 ? 's' : '') + ' at once.' + (S.up !== null ? ' Running for ' + fmtDuration(S.up) + '.' : '');
+    label = 'Stop filter'; cls = 'stop';
+  } else if (!S.binOk) {
+    state = 'warn'; t = 'Filter needs attention'; s = 'The filter program is missing. Try reinstalling the module.'; label = 'Start filter'; cls = 'start';
+  } else if (S.enabled && !S.disabled) {
+    state = 'warn'; t = 'Filter stopped on its own'; s = 'Start it again, or open Logs to see why.'; label = 'Start filter'; cls = 'start';
+  } else {
+    state = 'off'; t = 'Filter is off'; s = 'Ghost touches are getting through. Turn it on to filter them.'; label = 'Start filter'; cls = 'start';
+  }
+  hero.className = 'hero is-' + state;
+  title.textContent = t; sub.textContent = s;
+  btn.textContent = label; btn.className = 'power ' + cls; btn.disabled = disabled;
+  btn.onclick = S.running ? stopDaemon : startDaemon;
 
-function renderTouches(touchList) {
-  const rect = testPad.getBoundingClientRect();
-  const activeIds = new Set();
-  for (const t of touchList) {
-    activeIds.add(t.identifier);
-    let dot = padDots.get(t.identifier);
-    if (!dot) {
-      dot = document.createElement('div');
-      dot.className = 'test-dot';
-      testPad.appendChild(dot);
-      padDots.set(t.identifier, dot);
-    }
-    dot.style.left = (t.clientX - rect.left) + 'px';
-    dot.style.top = (t.clientY - rect.top) + 'px';
-  }
-  for (const [id, dot] of padDots) {
-    if (!activeIds.has(id)) { dot.remove(); padDots.delete(id); }
-  }
-  testPadHint.style.opacity = padDots.size > 0 ? '0' : '1';
+  highlight(n);
+  $('field-note').hidden = !(S.loaded && !noBridge && !S.running && !busy);
+  $('st-caught').textContent = S.burst + S.stuck;
+  $('st-bursts').textContent = S.burst;
+  $('st-stuck').textContent = S.stuck;
+  renderEvents($('recent'), eventsFromLines(S.recent, ['config', 'restart']).slice(-3),
+    S.running ? 'Nothing caught yet. That\u2019s fine: it only acts when a ghost shows up.' : 'Nothing yet.', 3);
 }
 
-testPad.addEventListener('touchstart', e => { e.preventDefault(); renderTouches(e.touches); }, { passive: false });
-testPad.addEventListener('touchmove',  e => { e.preventDefault(); renderTouches(e.touches); }, { passive: false });
-testPad.addEventListener('touchend',    e => renderTouches(e.touches));
-testPad.addEventListener('touchcancel', e => renderTouches(e.touches));
-
-let lastDiagnosis = [];
-function renderErrorBanner() {
-  if (lastDiagnosis.length === 0) { errorBanner.classList.remove('show'); return; }
-  errorBanner.textContent = lastDiagnosis.join(' ');
-  errorBanner.classList.add('show');
-}
-
-// One combined shell call instead of several separate round trips --
-// gathers the finger count, whether the daemon is actually running, and
-// enough state to tell a genuine failure apart from "intentionally off".
-async function refreshStatus() {
-  let raw;
-  try {
-    raw = await runShell(
-      `echo "$(cat ${MODDIR}/max_fingers.conf 2>/dev/null)|$(pgrep -x touchguard)|` +
-      `$([ -f ${MODDIR}/touchguard ] && echo 1 || echo 0)|` +
-      `$([ -f ${MODDIR}/enabled ] && echo 1 || echo 0)|` +
-      `$([ -f /data/local/tmp/touchguard_disable ] && echo 1 || echo 0)|` +
-      `$(grep -cE 'blocking until full release|hiding it' ${MODDIR}/touchguard.log 2>/dev/null || echo 0)"`
-    );
-  } catch (e) {
-    statusText.textContent = 'could not check status: ' + e.message;
-    statusDot.className = 'dot off';
-    return;
+(function buildSeg() {
+  const seg = $('seg');
+  for (let n = 1; n <= MAX_OPTION; n++) {
+    const b = document.createElement('button');
+    b.id = 'btn-' + n; b.textContent = n; b.dataset.n = n;
+    b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', 'false');
+    b.setAttribute('aria-label', n + (n === 1 ? ' finger' : ' fingers'));
+    b.onclick = function () { setMaxFingers(n); };
+    seg.appendChild(b);
   }
-
-  const [mfRaw, psRaw, binOk, enabledFlag, disableFlag, blockCount] = raw.trim().split('|');
-  const current = parseInt(mfRaw, 10) || 2;
-  const running = (psRaw || '').trim().length > 0;
-
-  highlight(current);
-  statusDot.className = 'dot ' + (running ? 'on' : 'off');
-  statusText.textContent = (running ? 'Running' : 'Stopped') + ' \u2014 allowing ' + current + ' finger' + (current > 1 ? 's' : '') + ' right now';
-  document.getElementById('block-counter').textContent = parseInt(blockCount, 10) || 0;
-
-  powerBtn.textContent = running ? 'Stop' : 'Start';
-  powerBtn.className = 'power-btn ' + (running ? 'stop' : 'start');
-  powerBtn.onclick = running ? stopDaemon : startDaemon;
-
-  lastDiagnosis = [];
-  if (binOk !== '1') {
-    lastDiagnosis.push('The filter program itself is missing. Try reinstalling the module.');
-  }
-  if (enabledFlag === '1' && disableFlag !== '1' && !running) {
-    lastDiagnosis.push("The filter should be running but stopped on its own. Check the log below, or hit Start again on Home.");
-  }
-  if (!document.getElementById('page-logs').hidden) renderErrorBanner();
-}
+})();
 
 async function startDaemon() {
-  msgEl.textContent = 'starting...';
+  stateGeneration++;
+  setBusy('starting');
   try {
-    await runShell(`rm -f /data/local/tmp/touchguard_disable`);
-    await runShell(`touch ${MODDIR}/enabled`);
-    await runShell(`CG=""; for c in /sys/fs/cgroup/cgroup.procs /dev/cg2_bpf/cgroup.procs; do [ -w "$c" ] && CG="$c" && break; done; ( if command -v setsid >/dev/null 2>&1; then setsid sh ${MODDIR}/launch.sh >/dev/null 2>&1 & else sh ${MODDIR}/launch.sh >/dev/null 2>&1 & fi; CPID=$!; [ -n "$CG" ] && echo "$CPID" > "$CG" 2>/dev/null )`);
-    msgEl.textContent = 'started, no reboot needed';
-    setTimeout(refreshStatus, 2000);
+    await runShell('rm -f /data/local/tmp/touchguard_disable');
+    await runShell('touch ' + MODDIR + '/enabled');
+    // A supervisor loop from boot (service.sh) is very likely already alive here.
+    // Launching a second one means two loops fighting over the same EVIOCGRAB
+    // forever, so only launch if nothing is already running. (Fix from v3.3, kept.)
+    const already = await runShell('pgrep -f "' + MODDIR + '/launch.sh" 2>/dev/null');
+    if (already && already.trim()) {
+      toast('Already running');
+      setBusy(null); setTimeout(refreshStatus, 400);
+      return;
+    }
+    await runShell('CG=""; for c in /sys/fs/cgroup/cgroup.procs /dev/cg2_bpf/cgroup.procs; do [ -w "$c" ] && CG="$c" && break; done; ( if command -v setsid >/dev/null 2>&1; then setsid sh ' + MODDIR + '/launch.sh >/dev/null 2>&1 & else sh ' + MODDIR + '/launch.sh >/dev/null 2>&1 & fi; CPID=$!; [ -n "$CG" ] && echo "$CPID" > "$CG" 2>/dev/null )');
+    toast('Filter started. No reboot needed.');
+    setTimeout(refreshStatus, 1800);
   } catch (e) {
-    msgEl.textContent = 'error: ' + e.message;
+    setBusy(null); toast('Couldn\u2019t start: ' + e.message, 'err');
   }
 }
 
 async function stopDaemon() {
-  msgEl.textContent = 'stopping...';
+  stateGeneration++;
+  setBusy('stopping');
   try {
-    await runShell(`touch /data/local/tmp/touchguard_disable`);
-    await runShell(`pkill -x touchguard`);
-    await runShell(`rm -f ${MODDIR}/enabled`);
-    msgEl.textContent = "stopped, won't restart at next boot either";
-    setTimeout(refreshStatus, 1000);
+    await runShell('touch /data/local/tmp/touchguard_disable');
+    await runShell('pkill -x touchguard');
+    await runShell('rm -f ' + MODDIR + '/enabled');
+    toast('Filter stopped. It won\u2019t start at the next boot either.');
+    setTimeout(refreshStatus, 900);
   } catch (e) {
-    msgEl.textContent = 'error: ' + e.message;
+    setBusy(null); toast('Couldn\u2019t stop: ' + e.message, 'err');
   }
 }
 
 async function setMaxFingers(n) {
-  msgEl.textContent = 'applying...';
-  highlight(n);
+  if (S.loaded && n === S.fingers) { highlight(n); return; }
+  stateGeneration++;
+  S.fingers = n; highlight(n); renderHome();
   try {
-    await runShell(`echo ${n} > ${MODDIR}/max_fingers.conf`);
-    await runShell(`pkill -x touchguard`);
-    msgEl.textContent = 'set to ' + n + ', restarting the filter';
+    await runShell('echo ' + n + ' > ' + MODDIR + '/max_fingers.conf');
+    await runShell('pkill -x touchguard');
+    toast('Limit set to ' + n + '. Restarting the filter.');
     setTimeout(refreshStatus, 1800);
   } catch (e) {
-    msgEl.textContent = 'error: ' + e.message;
+    toast('Couldn\u2019t apply: ' + e.message, 'err');
   }
 }
 
-/* ================= Logs ================= */
-// Polls and re-renders only when content actually changed, so an idle
-// daemon costs nothing extra to watch.
-let _lastLog = null;
+/* ===================================================================
+   The touch field. Dots near a finger swell like a capacitive sensor's
+   readout. Every contact drawn here is a real DOM touch that already got
+   through the filter; a blocked ghost never becomes an event at all.
+=================================================================== */
+const F = { cv: $('field-cv'), ctx: null, w: 0, h: 0, touches: {}, peak: 0, peakTimer: 0, c: {} };
+const SHIELD = (typeof Path2D === 'function') ? new Path2D('M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z') : null;
+
+function fieldColors() {
+  const cs = getComputedStyle(document.documentElement);
+  F.c = {
+    primary: cs.getPropertyValue('--primary').trim() || '#0a84ff',
+    ring:    cs.getPropertyValue('--primary-2').trim() || '#64b5ff',
+    dot:     cs.getPropertyValue('--field-dot').trim() || 'rgba(255,255,255,0.2)',
+    mark:    cs.getPropertyValue('--field-mark').trim() || 'rgba(255,255,255,0.15)',
+  };
+}
+function fieldResize() {
+  const r = F.cv.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  const dpr = window.devicePixelRatio || 1;
+  F.cv.width = Math.round(r.width * dpr); F.cv.height = Math.round(r.height * dpr);
+  F.ctx = F.cv.getContext('2d'); F.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  F.w = r.width; F.h = r.height;
+  fieldDraw();
+}
+function fieldDraw() {
+  const ctx = F.ctx; if (!ctx || !F.w) return;
+  const w = F.w, h = F.h, G = 22;
+  ctx.clearRect(0, 0, w, h);
+  if (SHIELD) {
+    const s = Math.min(w, h) * 0.52 / 24;
+    ctx.save(); ctx.translate(w / 2 - 12 * s, h / 2 - 11 * s); ctx.scale(s, s);
+    ctx.lineWidth = 0.55; ctx.strokeStyle = F.c.mark; ctx.lineJoin = 'round'; ctx.stroke(SHIELD); ctx.restore();
+  }
+  const ids = Object.keys(F.touches), pts = ids.map(function (k) { return F.touches[k]; });
+  const cols = Math.floor(w / G), rows = Math.floor(h / G);
+  const ox = (w - (cols - 1) * G) / 2, oy = (h - (rows - 1) * G) / 2;
+  const two = 2 * 50 * 50;
+  for (let i = 0; i < cols; i++) {
+    for (let j = 0; j < rows; j++) {
+      const x = ox + i * G, y = oy + j * G;
+      let f = 0;
+      for (let k = 0; k < pts.length; k++) { const dx = x - pts[k].x, dy = y - pts[k].y; f += Math.exp(-(dx * dx + dy * dy) / two); }
+      if (f > 1) f = 1;
+      ctx.beginPath();
+      if (f > 0.03) { ctx.globalAlpha = 0.28 + 0.72 * f; ctx.fillStyle = F.c.primary; ctx.arc(x, y, 1.6 + 3.6 * f, 0, 6.2832); }
+      else          { ctx.globalAlpha = 1; ctx.fillStyle = F.c.dot; ctx.arc(x, y, 1.5, 0, 6.2832); }
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+  for (let k = 0; k < pts.length; k++) {   // the real-touch glyph from the logo: solid core inside a ring
+    ctx.beginPath(); ctx.arc(pts[k].x, pts[k].y, 27, 0, 6.2832); ctx.lineWidth = 2.5; ctx.strokeStyle = F.c.ring; ctx.globalAlpha = 0.65; ctx.stroke();
+    ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(pts[k].x, pts[k].y, 11, 0, 6.2832); ctx.fillStyle = F.c.primary; ctx.fill();
+  }
+}
+function fieldSet(map) {
+  F.touches = map;
+  const n = Object.keys(map).length;
+  $('field').classList.toggle('has-touch', n > 0 || F.peak > 0);
+  $('fd-now').textContent = n;
+  if (n > F.peak) F.peak = n;
+  $('fd-peak').textContent = F.peak;
+  clearTimeout(F.peakTimer);
+  if (n === 0) F.peakTimer = setTimeout(function () { F.peak = 0; $('fd-peak').textContent = 0; $('field').classList.remove('has-touch'); }, 3500);
+  fieldDraw();
+}
+function touchMap(list) {
+  const r = F.cv.getBoundingClientRect(), m = {};
+  for (let i = 0; i < list.length; i++) m[list[i].identifier] = { x: list[i].clientX - r.left, y: list[i].clientY - r.top };
+  return m;
+}
+['touchstart', 'touchmove'].forEach(function (ev) {
+  F.cv.addEventListener(ev, function (e) { e.preventDefault(); fieldSet(touchMap(e.targetTouches)); }, { passive: false });
+});
+['touchend', 'touchcancel'].forEach(function (ev) {
+  F.cv.addEventListener(ev, function (e) { fieldSet(touchMap(e.targetTouches)); });
+});
+// A mouse (desktop preview) gets the same treatment; real touches arrive through the touch events above.
+let mouseDown = false;
+F.cv.addEventListener('pointerdown', function (e) { if (e.pointerType !== 'mouse') return; mouseDown = true; const r = F.cv.getBoundingClientRect(); fieldSet({ m: { x: e.clientX - r.left, y: e.clientY - r.top } }); });
+F.cv.addEventListener('pointermove', function (e) { if (e.pointerType !== 'mouse' || !mouseDown) return; const r = F.cv.getBoundingClientRect(); fieldSet({ m: { x: e.clientX - r.left, y: e.clientY - r.top } }); });
+window.addEventListener('pointerup', function (e) { if (e.pointerType === 'mouse' && mouseDown) { mouseDown = false; fieldSet({}); } });
+if (window.ResizeObserver) new ResizeObserver(fieldResize).observe($('field')); else window.addEventListener('resize', fieldResize);
+
+/* ===================================================================
+   Logs
+=================================================================== */
+let logFilter = 'all', showRaw = false, _lastLog = null, lastLogLines = [];
+
+function renderErrorBanner() {
+  const d = diagnosis(), b = $('error-banner');
+  if (!d.length) { b.hidden = true; return; }
+  b.textContent = d.join(' '); b.hidden = false;
+}
+
+function renderLog() {
+  const lines = lastLogLines;
+  const fb = { all: 'Nothing logged yet.', caught: 'No ghosts caught yet.', problems: 'No problems logged.' };
+  let evs = eventsFromLines(lines);
+  if (logFilter === 'caught')   evs = evs.filter(function (e) { return e.tone === 'caught'; });
+  if (logFilter === 'problems') evs = evs.filter(function (e) { return e.tone === 'err' || e.tone === 'warn'; });
+  renderEvents($('feed'), evs, fb[logFilter], 100);
+  const raw = $('raw'); raw.innerHTML = '';
+  lines.slice(-150).forEach(function (line) {
+    const d = document.createElement('div');
+    if (/^\[v\]/.test(line)) d.className = 'r-v';
+    else if (/error|failed|cannot/i.test(line)) d.className = 'r-err';
+    else if (/blocking until|stale after|forcing clear|hiding it/i.test(line)) d.className = 'r-warn';
+    d.textContent = line; raw.appendChild(d);
+  });
+  if (!lines.length) raw.innerHTML = '<div class="r-v">no log entries yet</div>';
+  raw.scrollTop = raw.scrollHeight;
+  $('feed').hidden = showRaw; raw.hidden = !showRaw;
+  $('log-caption').textContent = 'The filter has started ' + S.starts + (S.starts === 1 ? ' time' : ' times') + ' since the log began. Newest events first.';
+}
 
 async function refreshLog() {
   let out;
-  try {
-    out = await runShell(`tail -n 40 ${MODDIR}/touchguard.log`);
-  } catch (e) {
-    logOutput.innerHTML = '<div class="log-error">log unavailable: ' + e.message + '</div>';
-    return;
-  }
+  try { out = await runShell(withDir(': tg-log; tail -n 400 @M@/touchguard.log 2>/dev/null')); }
+  catch (e) { $('feed').innerHTML = '<li class="feed-empty">Log unavailable: ' + e.message.replace(/</g, '&lt;') + '</li>'; _lastLog = null; return; }
   if (out === _lastLog) return;
   _lastLog = out;
-
-  const lines = out.split('\n').filter(l => l.trim().length > 0);
-  if (lines.length === 0) {
-    logOutput.innerHTML = '<div class="log-empty">no log entries yet</div>';
-    return;
-  }
-  logOutput.innerHTML = '';
-  for (const line of lines) {
-    const div = document.createElement('div');
-    div.className = 'log-line';
-    if (/error|failed|cannot|cannot open/i.test(line)) div.classList.add('log-error');
-    else if (/blocking|stale after|failsafe|forcing clear|hiding it/i.test(line)) div.classList.add('log-warn');
-    div.textContent = line;
-    logOutput.appendChild(div);
-  }
-  logOutput.scrollTop = logOutput.scrollHeight;
+  lastLogLines = out.split('\n').filter(function (l) { return l.trim().length > 0; });
+  renderLog();
 }
 
-document.getElementById('clear-btn').onclick = async () => {
-  logMsg.textContent = 'clearing...';
-  try {
-    await runShell(`: > ${MODDIR}/touchguard.log`);
-    _lastLog = null;
-    document.getElementById('block-counter').textContent = '0';
-    await refreshLog();
-    logMsg.textContent = 'log cleared';
-  } catch (e) {
-    logMsg.textContent = 'error: ' + e.message;
-  }
+[['chip-all', 'all'], ['chip-caught', 'caught'], ['chip-problems', 'problems']].forEach(function (p) {
+  $(p[0]).onclick = function () {
+    logFilter = p[1];
+    ['all', 'caught', 'problems'].forEach(function (k) { $('chip-' + k).setAttribute('aria-pressed', k === logFilter ? 'true' : 'false'); });
+    renderLog();
+  };
+});
+$('raw-switch').onclick = function () {
+  showRaw = !showRaw; $('raw-switch').setAttribute('aria-checked', showRaw ? 'true' : 'false'); renderLog();
 };
 
-document.getElementById('save-btn').onclick = async () => {
-  logMsg.textContent = 'saving...';
+confirmTap($('btn-clear'), 'Tap again to clear', async function () {
   try {
-    const ts = (await runShell(`date +%Y%m%d-%H%M%S`)).trim();
-    const dest = `/sdcard/Download/touchguard-log-${ts}.txt`;
-    await runShell(`cp ${MODDIR}/touchguard.log ${dest}`);
-    logMsg.textContent = 'saved to Download/touchguard-log-' + ts + '.txt';
-  } catch (e) {
-    logMsg.textContent = 'error: ' + e.message;
-  }
+    await runShell(': > ' + MODDIR + '/touchguard.log');
+    _lastLog = null; await refreshLog(); await refreshStatus();
+    toast('Log cleared. The counters start from zero.');
+  } catch (e) { toast('Couldn\u2019t clear: ' + e.message, 'err'); }
+});
+
+$('btn-save').onclick = async function () {
+  try {
+    const ts = (await runShell('date +%Y%m%d-%H%M%S')).trim();
+    await runShell('cp ' + MODDIR + '/touchguard.log /sdcard/Download/touchguard-log-' + ts + '.txt');
+    toast('Saved to Download/touchguard-log-' + ts + '.txt');
+  } catch (e) { toast('Couldn\u2019t save: ' + e.message, 'err'); }
 };
 
-/* ================= Version (About) ================= */
+/* ---- support report: one paste for the discussion group ---- */
+const REPORT_CMD = withDir([
+  ': tg-report',
+  'M=@M@',
+  'echo "device: $(getprop ro.product.manufacturer) $(getprop ro.product.model), Android $(getprop ro.build.version.release) (SDK $(getprop ro.build.version.sdk)), kernel $(uname -r)"',
+  'echo "touch panel: $(grep TS_NAME $M/touchguard.conf 2>/dev/null | head -n 1 | cut -d= -f2 | tr -d \'"\')"',
+  'echo "@@"',
+  'for f in max_fingers stale_ms stale_px top_zone_pct top_zone_stale_ms max_block_ms wake_grace_ms verbose_log; do printf \'%s=%s \' $f "$(cat $M/$f.conf 2>/dev/null)"; done; echo',
+  'echo "@@"',
+  'grep -v -F \'[v] \' $M/touchguard.log 2>/dev/null | tail -n 60',
+].join('\n'));
+
+let versionText = '';
+async function buildReport() {
+  let sys = '';
+  try { sys = await runShell(REPORT_CMD); } catch (e) { sys = 'device: could not read (' + e.message + ')\n@@\n\n@@\n'; }
+  const p = sys.split(/\n@@\n?/);
+  return [
+    'TouchGuard report',
+    'module: ' + (versionText || 'unknown'),
+    'state: ' + (S.running ? 'running' + (S.up !== null ? ' for ' + fmtDuration(S.up).replace(/\u00a0/g, ' ') : '') : 'stopped') + ', limit ' + S.fingers + ' finger' + (S.fingers > 1 ? 's' : ''),
+    'caught: ' + (S.burst + S.stuck) + ' (bursts ' + S.burst + ', stuck ' + S.stuck + '), failsafe releases ' + S.failsafe + ', starts ' + S.starts,
+    (p[0] || '').trim(),
+    'settings: ' + (p[1] || '').trim(),
+    '---- log, last 60 lines, verbose lines left out ----',
+    (p[2] || '').trim() || '(empty)',
+  ].join('\n');
+}
+$('btn-report').onclick = async function () {
+  const text = await buildReport();
+  if (await copyText(text)) { toast('Report copied. Paste it in the discussion group.'); return; }
+  try {
+    const ts = (await runShell('date +%Y%m%d-%H%M%S')).trim();
+    const b64 = btoa(unescape(encodeURIComponent(text)));
+    await runShell("echo '" + b64 + "' | base64 -d > /sdcard/Download/touchguard-report-" + ts + '.txt');
+    toast('Couldn\u2019t copy, so it\u2019s saved as Download/touchguard-report-' + ts + '.txt');
+  } catch (e) { toast('Couldn\u2019t copy or save the report: ' + e.message, 'err'); }
+};
+
+/* ---- tools ---- */
+function renderTools() { $('sw-verbose').setAttribute('aria-checked', S.verbose === 1 ? 'true' : 'false'); }
+$('sw-verbose').onclick = async function () {
+  const next = S.verbose === 1 ? 0 : 1;
+  stateGeneration++;
+  S.verbose = next; renderTools();
+  try {
+    await runShell('echo ' + next + ' > ' + MODDIR + '/verbose_log.conf && pkill -x touchguard');
+    toast('Verbose logging ' + (next ? 'on' : 'off') + '. Restarting the filter.');
+    setTimeout(refreshStatus, 1800);
+  } catch (e) { S.verbose = next ? 0 : 1; renderTools(); toast('Couldn\u2019t change it: ' + e.message, 'err'); }
+};
+$('btn-restart').onclick = async function () {
+  stateGeneration++;
+  try { await runShell('pkill -x touchguard'); toast('Restarting the filter.'); setTimeout(refreshStatus, 1800); }
+  catch (e) { toast('Couldn\u2019t restart: ' + e.message, 'err'); }
+};
+confirmTap($('btn-refresh-touch'), 'Tap again, screen will blink', async function () {
+  try {
+    toast('Turning the screen off and on\u2026');
+    await runShell('input keyevent 223; sleep 1; input keyevent 224');
+  } catch (e) { toast('Couldn\u2019t refresh touch: ' + e.message, 'err'); }
+});
+
+/* ===================================================================
+   Tune. Every value is clamped by the daemon itself (out-of-range falls
+   back to its default), so nothing here can brick the filter. Sliders
+   snap to sensible steps; a hand-edited value outside the steps is
+   added as its own step rather than silently rounded away.
+=================================================================== */
+const TUNE_ITEMS = [
+  { key: 'stale_ms', file: 'stale_ms.conf', group: 'stuck', def: 30000, range: [500, 120000], title: 'Stuck-touch timeout',
+    steps: [2000, 3000, 5000, 8000, 10000, 15000, 20000, 30000, 45000, 60000, 90000, 120000], fmt: fmtMs,
+    help: 'A finger that stays perfectly still this long is treated as a stuck ghost and hidden. Long presses and holds end at the same point, so keep it generous.' },
+  { key: 'stale_px', file: 'stale_px.conf', group: 'stuck', def: 15, range: [0, 500], title: 'Still-finger tolerance',
+    steps: [0, 5, 10, 15, 25, 40, 60, 100], fmt: function (v) { return String(v); },
+    help: 'How far a held finger can drift and still count as not moving. Measured in touch-panel units, not screen pixels.' },
+  { key: 'top_zone_pct', file: 'top_zone_pct.conf', group: 'top', def: 15, range: [0, 100], title: 'Top strip size',
+    steps: [0, 5, 10, 15, 20, 25, 30, 40], fmt: function (v) { return v ? v + '% of the height' : 'Off'; },
+    help: 'The notification-bar area. Ghosts like it, so it gets its own shorter timeout. Zero turns that off.' },
+  { key: 'top_zone_stale_ms', file: 'top_zone_stale_ms.conf', group: 'top', def: 1500, range: [200, 60000], title: 'Top strip timeout',
+    steps: [500, 1000, 1500, 2000, 3000, 5000, 10000], fmt: fmtMs,
+    help: 'How long a still finger inside the top strip survives before it is hidden.' },
+  { key: 'max_block_ms', file: 'max_block_ms.conf', group: 'safety', def: 4000, range: [500, 30000], title: 'Longest block',
+    steps: [1000, 2000, 3000, 4000, 6000, 8000, 12000, 20000], fmt: fmtMs,
+    help: 'If a burst keeps going this long, the filter lets go instead of blocking forever.' },
+  { key: 'wake_grace_ms', file: 'wake_grace_ms.conf', group: 'safety', def: 6000, range: [500, 60000], title: 'Wake check',
+    steps: [2000, 4000, 6000, 8000, 12000, 20000], fmt: fmtMs,
+    help: 'After the screen turns on, if no touch data shows up in this time, the filter restarts itself to resync with the touch driver.' },
+];
+const TUNE_GROUPS = [
+  { id: 'stuck', title: 'Stuck touches' }, { id: 'top', title: 'Top of the screen' }, { id: 'safety', title: 'Safety nets' },
+];
+const tune = { loaded: {}, current: {}, steps: {}, built: false };
+
+function tuneDirty() { return TUNE_ITEMS.some(function (it) { return tune.current[it.key] !== tune.loaded[it.key]; }); }
+function stepsFor(it, v) {
+  const s = it.steps.slice();
+  if (s.indexOf(v) === -1) { s.push(v); s.sort(function (a, b) { return a - b; }); }
+  return s;
+}
+function paintSetting(it) {
+  const row = document.querySelector('.setting[data-key="' + it.key + '"]'); if (!row) return;
+  const steps = tune.steps[it.key], idx = steps.indexOf(tune.current[it.key]);
+  const input = row.querySelector('input');
+  input.value = idx; input.style.setProperty('--pct', (steps.length > 1 ? (idx / (steps.length - 1)) * 100 : 0) + '%');
+  row.querySelector('.setting-val').textContent = it.fmt(tune.current[it.key]);
+  row.classList.toggle('dirty', tune.current[it.key] !== tune.loaded[it.key]);
+}
+function tuneButtons() {
+  const dirty = tuneDirty();
+  $('btn-tune-apply').disabled = !dirty;
+  const atDefaults = TUNE_ITEMS.every(function (it) { return tune.current[it.key] === it.def; });
+  $('btn-tune-reset').disabled = atDefaults;
+}
+function buildTune() {
+  const wrap = $('tune-groups'); wrap.innerHTML = '';
+  TUNE_GROUPS.forEach(function (g) {
+    const box = document.createElement('div'); box.className = 'surface group';
+    const gt = document.createElement('div'); gt.className = 'group-title'; gt.textContent = g.title; box.appendChild(gt);
+    TUNE_ITEMS.filter(function (it) { return it.group === g.id; }).forEach(function (it) {
+      tune.steps[it.key] = stepsFor(it, tune.current[it.key]);
+      const row = document.createElement('div'); row.className = 'setting'; row.dataset.key = it.key;
+      row.innerHTML = '<div class="setting-head"><span class="setting-name"></span><span class="setting-val"></span></div>' +
+        '<input type="range" min="0" step="1" aria-label="' + it.title + '"><div class="setting-help"></div>';
+      row.querySelector('.setting-name').textContent = it.title;
+      row.querySelector('.setting-help').textContent = it.help;
+      const input = row.querySelector('input');
+      input.max = tune.steps[it.key].length - 1;
+      input.addEventListener('input', function () {
+        tune.current[it.key] = tune.steps[it.key][toNum(input.value)];
+        paintSetting(it); tuneButtons();
+      });
+      box.appendChild(row);
+    });
+    wrap.appendChild(box);
+  });
+  TUNE_ITEMS.forEach(paintSetting); tuneButtons(); tune.built = true;
+}
+function inRange(it, v) { return v >= it.range[0] && v <= it.range[1]; }
+
+async function loadTune() {
+  if (tune.built && tuneDirty()) return; // never clobber unsaved edits when switching tabs
+  let raw = '';
+  try {
+    raw = await runShell(withDir(': tg-tune; M=@M@; echo "' +
+      TUNE_ITEMS.map(function (it) { return '$(cat $M/' + it.file + ' 2>/dev/null)'; }).join('|') + '"; echo "@@"; grep "touchguard active on" $M/touchguard.log 2>/dev/null | tail -n 1'));
+  } catch (e) { /* fall back to defaults below */ }
+  const parts = raw.trim().split(/\n@@\n?/), vals = (parts[0] || '').split('|');
+  TUNE_ITEMS.forEach(function (it, i) {
+    const v = parseInt(vals[i], 10);
+    // mirror the daemon: a missing or out-of-range value means it is running on the default
+    tune.loaded[it.key] = (!isNaN(v) && inRange(it, v)) ? v : it.def;
+    tune.current[it.key] = tune.loaded[it.key];
+  });
+  buildTune();
+  showRunning((parts[1] || '').trim());
+}
+function showRunning(line) {
+  const el = $('tune-running');
+  const m = line.match(/max (\d+) finger.*stale timeout (\d+)ms\/(\d+)px, top-zone timeout (\d+)ms \(top (\d+)%\), block failsafe (\d+)ms/);
+  if (!m) { el.textContent = S.running ? '\u00a0' : 'The filter isn\u2019t running, so changes take effect when you start it.'; return; }
+  el.textContent = 'The running filter loaded: ' + m[1] + ' finger limit, stuck after ' + fmtMs(+m[2]) + ', top strip ' + m[5] + '% with ' + fmtMs(+m[4]) + ', block limit ' + fmtMs(+m[6]) + '.';
+}
+$('btn-tune-reset').onclick = function () {
+  TUNE_ITEMS.forEach(function (it) { tune.current[it.key] = it.def; tune.steps[it.key] = stepsFor(it, it.def); });
+  buildTune();
+};
+$('btn-tune-apply').onclick = async function () {
+  const changes = TUNE_ITEMS.filter(function (it) { return tune.current[it.key] !== tune.loaded[it.key]; });
+  if (!changes.length) return;
+  stateGeneration++;
+  const writes = changes.map(function (it) { return 'echo ' + tune.current[it.key] + ' > ' + MODDIR + '/' + it.file; }).join(' && ');
+  try {
+    await runShell(writes + '; pkill -x touchguard');
+    changes.forEach(function (it) { tune.loaded[it.key] = tune.current[it.key]; });
+    TUNE_ITEMS.forEach(paintSetting); tuneButtons();
+    toast(S.running ? 'Saved. The filter is restarting with your settings.' : 'Saved. It takes effect when you start the filter.');
+    setTimeout(async function () {
+      try {
+        const line = await runShell(withDir('grep "touchguard active on" @M@/touchguard.log 2>/dev/null | tail -n 1'));
+        showRunning(line.trim());
+      } catch (e) {}
+      refreshStatus();
+    }, 2600);
+  } catch (e) { toast('Couldn\u2019t save: ' + e.message, 'err'); }
+};
+
+/* ===================================================================
+   Version + update check
+=================================================================== */
 let currentVersionCode = 0;
 async function refreshVersion() {
   try {
-    const raw = await runShell(`grep -E '^(version|versionCode)=' ${MODDIR}/module.prop`);
-    const vm = raw.match(/version=(.+)/);
-    const vc = raw.match(/versionCode=(\d+)/);
-    if (vm) document.getElementById('version-label').textContent = 'TouchGuard ' + vm[1].trim();
+    const raw = await runShell('grep -E \'^(version|versionCode)=\' ' + MODDIR + '/module.prop');
+    const vm = raw.match(/^version=(.+)$/m), vc = raw.match(/versionCode=(\d+)/);
+    if (vm) {
+      versionText = vm[1].trim() + (vc ? ' (' + vc[1] + ')' : '');
+      $('ver-chip').textContent = vm[1].trim();
+      $('version-label').textContent = 'Ghost touch filter, ' + vm[1].trim();
+    }
     if (vc) currentVersionCode = parseInt(vc[1], 10);
   } catch (e) { /* leave the static fallback already in the HTML */ }
 }
 
-/* ================= Quick actions -- fixed, safe commands only ================= */
-// Deliberately NOT a freeform terminal: every command here is fixed and
-// written by us, not typed by whoever's looking at the screen. Tapping
-// one shows the exact command before/while it runs -- nothing silent.
-const QUICK_COMMANDS = {
-  'verbose-on':  `echo 1 > ${MODDIR}/verbose_log.conf && pkill -x touchguard`,
-  'verbose-off': `echo 0 > ${MODDIR}/verbose_log.conf && pkill -x touchguard`,
-  'restart':     `pkill -x touchguard`,
-};
-const quickOut = document.getElementById('quick-out');
-document.querySelectorAll('.quick-btn').forEach(btn => {
-  btn.onclick = async () => {
-    const cmd = QUICK_COMMANDS[btn.dataset.cmd];
-    quickOut.textContent = '$ ' + cmd + '\nrunning...';
-    quickOut.classList.add('show');
-    try {
-      await runShell(cmd);
-      quickOut.textContent = '$ ' + cmd + '\ndone';
-      setTimeout(refreshStatus, 1500);
-    } catch (e) {
-      quickOut.textContent = '$ ' + cmd + '\nerror: ' + e.message;
-    }
-  };
-});
-
-/* ================= Update check =================
-   Reads the same updateJson your root manager already checks (once
-   configured in module.prop) -- this just shows it nicely in-app too.
-   "View update" opens the zip link through Android's own download flow;
-   it does not fetch-and-flash itself. See README for why. */
-const UPDATE_JSON_URL = "https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_REPO/main/update.json";
-
+// Reads the same updateJson the root manager already checks; this just shows it in-app too.
+// "View update" opens the zip link through Android's own download flow. It does not fetch
+// and flash anything itself.
+const UPDATE_JSON_URL = 'https://raw.githubusercontent.com/shivrajtode/TouchGuard/main/update.json';
 async function checkForUpdate() {
   let raw;
   try {
-    raw = await runShell(`curl -fsSL "${UPDATE_JSON_URL}" 2>/dev/null || wget -qO- "${UPDATE_JSON_URL}" 2>/dev/null`);
+    // Hard timeouts: a stuck network call must never be able to jam the shell channel,
+    // since everything else the page needs goes through that same channel.
+    raw = await runShell('curl --connect-timeout 3 --max-time 5 -fsSL "' + UPDATE_JSON_URL + '" 2>/dev/null || wget --timeout=5 -qO- "' + UPDATE_JSON_URL + '" 2>/dev/null');
   } catch (e) { return; }
-  if (!raw || !raw.trim()) return; // no curl/wget, offline, or not hosted yet -- fail silent, never block the UI
-
+  if (!raw || !raw.trim()) return;
   let manifest;
   try { manifest = JSON.parse(raw); } catch (e) { return; }
   if (!manifest.versionCode || manifest.versionCode <= currentVersionCode) return;
-
   let dismissed = 0;
-  try { dismissed = parseInt((await runShell(`cat ${MODDIR}/update_dismissed.conf 2>/dev/null`)).trim(), 10) || 0; } catch (e) {}
+  try { dismissed = parseInt((await runShell('cat ' + MODDIR + '/update_dismissed.conf 2>/dev/null')).trim(), 10) || 0; } catch (e) {}
   if (manifest.versionCode <= dismissed) return;
-
-  document.getElementById('ub-title').textContent = 'Update available: ' + (manifest.version || '');
-  document.getElementById('ub-summary').textContent = manifest.summary || 'A new version is ready.';
-  document.getElementById('update-banner').classList.add('show');
-  document.getElementById('ub-update-btn').onclick = () => {
-    runShell(`am start -a android.intent.action.VIEW -d "${manifest.zipUrl}"`).catch(() => {});
-  };
-  document.getElementById('ub-close').onclick = async () => {
-    document.getElementById('update-banner').classList.remove('show');
-    try { await runShell(`echo ${manifest.versionCode} > ${MODDIR}/update_dismissed.conf`); } catch (e) {}
+  $('ub-title').textContent = 'Update available: ' + (manifest.version || '');
+  $('ub-summary').textContent = manifest.summary || 'A new version is ready.';
+  $('update-banner').hidden = false;
+  $('ub-update-btn').onclick = function () { runShell('am start -a android.intent.action.VIEW -d "' + manifest.zipUrl + '"').catch(function () {}); };
+  $('ub-close').onclick = async function () {
+    $('update-banner').hidden = true;
+    try { await runShell('echo ' + manifest.versionCode + ' > ' + MODDIR + '/update_dismissed.conf'); } catch (e) {}
   };
 }
 
-/* ================= Boot ================= */
-loadTheme();
+/* ===================================================================
+   Polling. Nothing polls while the page is hidden, the log only
+   refreshes while the Logs tab is showing, and status slows down when
+   Home isn't on screen. Every poll is a root shell spawn, so idle
+   pages should cost nothing.
+=================================================================== */
+function statusLoop() {
+  const delay = busy ? 1500 : (currentPage === 'home' ? 5000 : 15000);
+  setTimeout(async function () {
+    if (!document.hidden) { try { await refreshStatus(); } catch (e) {} }
+    statusLoop();
+  }, delay);
+}
+function logLoop() {
+  setTimeout(async function () {
+    if (!document.hidden && currentPage === 'logs') { try { await refreshLog(); } catch (e) {} }
+    logLoop();
+  }, 2500);
+}
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) return;
+  refreshStatus(); if (currentPage === 'logs') refreshLog();
+});
+
+/* ===================================================================
+   Boot
+=================================================================== */
+fieldColors();
+fieldResize();
+renderHome();
+loadTheme(); loadFx();
 refreshStatus();
-refreshLog();
-refreshVersion().then(checkForUpdate);
-setInterval(refreshStatus, 5000);
-setInterval(refreshLog, 2500);
+refreshVersion();
+statusLoop(); logLoop();
+setTimeout(function () { if (!window.ksu) { noBridge = true; S.loaded = true; renderHome(); } }, 1200);
+// The update check waits until the real UI is up and settled: it's a background
+// nice-to-have and must never compete with the first load for the shell channel.
+setTimeout(function () { refreshVersion().then(checkForUpdate); }, 4000);
+
+})();
 </script>
 </body>
 </html>
