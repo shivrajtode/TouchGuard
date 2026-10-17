@@ -5,6 +5,117 @@ turned out to be wrong, and why. Kept complete on purpose: if you're
 trying to understand *why* something is built the way it is, the reason
 is usually a bug further down this file.
 
+## v3.12: a bottom bar that stays put, a log list that stays out of the way, new icons
+
+First round of fixes after using v3.11 on a real device.
+
+The bottom bar moved when you pulled down on any tab. It was a sticky
+element inside a page that itself scrolled, so any overscroll dragged it
+along with everything else. Fixed at the root rather than patched: the
+page no longer scrolls at all. The app is now a fixed-height column with
+the bar at the bottom and one inner scroller above it, with page-level
+overscroll switched off, so there is nothing left to drag the bar around.
+I can't reproduce Android's overscroll stretch in a desktop browser, so
+what I verified is that the cause is gone: the document can't scroll,
+the bar sits outside the scroller, and raw touch drags (pull-down at the
+top, pushing past the bottom) leave it exactly where it was on every
+tab. Checked against the previous build, where the same test sees a
+scrollable document and a sticky bar. Please confirm on the device.
+
+The log list took over the screen. It could grow to over half the
+height and scrolled internally, so most swipes landed on it instead of
+the page, and the Tools below were hard to reach. It is now a fixed
+height (about a third of the screen, between 200 and 380 px) in both the
+plain-language and raw views, with the lines scrolling inside it, so the
+page is always reachable around it and the Tools sit right beneath.
+Reaching the end of the list no longer drags the page along with it.
+
+Icons redone in the Material 3 Expressive style. Navigation icons come
+as an outlined and a filled pair: outlined when idle, filled when
+selected, inside a pill indicator that springs open behind the icon,
+with a bolder label on the current tab. The event rows, toolbar and
+tools use the same rounded family, drawn once in a shared sprite so
+each glyph exists exactly once.
+
+Tested with 76 checks on the control flows (the v3.3 and v3.8 guards
+among them), 35 on the layout (nav position under scrolling and
+touch drags on every tab, the fixed-height panel with 400 lines of log,
+reachability of the tools), and 16 on polling, overflow and
+accessibility. One of my own first layout checks passed for the wrong
+reason, because synthesized touch gestures do nothing in the test
+browser; it was redone with raw touch events after a control run proved
+those actually scroll. Still not tested inside a real root manager's
+WebView.
+
+## v3.11: a new control panel
+
+Follow-up to v3.10, which only touched the About tab, the logo and the
+installer's redirect. This one is the control panel itself.
+
+The control panel got a ground-up redo, because the old one answered
+"is it on?" but not "is it doing anything?" or "what do I do when it
+misbehaves?"
+
+Home now leads with the answer: a status headline, how many ghosts
+were caught (bursts and stuck touches, counted from the log), then the
+finger limit as a sliding selector. Below that is a touch field: a dot
+matrix that swells under your fingers like a capacitive sensor readout,
+using the logo's own glyphs (a solid ringed dot is a real touch, a
+dashed crossed circle is a ghost). Everything drawn there is a real
+touch that made it through the filter. A blocked ghost never becomes an
+event at all, so the field can't show one and doesn't pretend to. Stop
+is a quiet button rather than a red one, since the normal state
+shouldn't invite an accidental tap.
+
+Logs now speak plain language ("Blocked a burst of 5 fingers", "Hid a
+stuck touch") instead of raw daemon lines, with filters, identical
+neighbours collapsed into a count, and the raw lines one switch away.
+The daemon's own log lines carry no timestamps, so nothing here says
+"3 minutes ago"; it only claims order and counts. Copy support report
+puts the device, Android version, settings, counters and the last 60
+log lines on the clipboard in one tap, for the discussion group.
+
+New Tune tab for the six settings that used to need hand-edited files:
+stuck-touch timeout and tolerance, the top strip, the longest block,
+and the wake check, each with a plain explanation. The daemon already
+clamps every value to a safe range (a missing or out-of-range file
+means it runs on the default), so nothing here can brick the filter,
+and the sliders show what the daemon will actually use rather than
+what the file happens to say.
+
+Also new: Refresh touch (screen off and on, like pressing power twice,
+behind a two-tap confirm), a verbose-logging switch that shows its real
+state, Lighter effects for slow GPUs, live previews on the Theme page,
+a single centered column on portrait tablets, and a wide layout with a
+big test field beside the status in landscape.
+
+Fixed while in there:
+- Contrast. "Faint" text failed the AA ratio in Glass, Dark and Light,
+  and so did Light's Start button. Every token was re-picked against
+  measured ratios.
+- color-mix() is gone. Older WebViews drop the whole declaration, so
+  those tints silently vanished there; every tint is now an explicit
+  color.
+- Polling. The page ran a root shell call every 2.5 s for the log even
+  on tabs that never show it. Now the log polls only while Logs is
+  open, status slows down off Home, and nothing polls while the page is
+  backgrounded. Every poll is a shell spawn, so an idle page should
+  cost nothing.
+- The saved theme is cached so the right one paints on the first
+  frame instead of flashing Glass first. theme.conf is still the truth.
+
+Not changed: the daemon, the root bridge, Start/Stop and the finger
+count flow (including the v3.3 double-supervisor guard and the v3.8
+stale-response guard), and the update check.
+
+Tested against a simulated root bridge in headless Chromium: 75 checks
+on the control flows, 15 on polling, overflow and accessibility, and
+renders of all five themes at phone and tablet sizes. NOT yet tested
+inside a real root manager's WebView, so the first look on a device
+matters. The things most likely to behave differently there are
+clipboard access (it falls back to saving a file) and where the theme
+cache lives.
+
 ## v3.10: WebUI links, a proper logo, and actual clickable badges
 
 Follow-up to v3.9, not a repeat of it -- that pass added the Telegram
