@@ -1,7 +1,7 @@
 id=touchguard
 name=TouchGuard - Ghost Touch Blocker
-version=v3.1
-versionCode=23
+version=v3.12
+versionCode=33
 author=Shivraj (@Shivraj_editx) | t.me/Shivraj_editx
 description=Stops phantom touches (fingers from nowhere, or a contact that gets stuck) before they reach your apps -- no reboot needed. Your real taps, swipes, and holds pass through completely untouched.
-updateJson=https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_REPO/main/update.json
+updateJson=https://raw.githubusercontent.com/shivrajtode/TouchGuard/main/update.json
