@@ -1,7 +1,7 @@
 {
-  "version": "v3.10",
-  "versionCode": 31,
-  "zipUrl": "https://github.com/shivrajtode/TouchGuard/releases/download/v3.10/TouchGuard-v3.10.zip",
+  "version": "v3.12",
+  "versionCode": 33,
+  "zipUrl": "https://github.com/shivrajtode/TouchGuard/releases/download/v3.12/TouchGuard-v3.12.zip",
   "changelog": "https://raw.githubusercontent.com/shivrajtode/TouchGuard/main/LATEST.md",
-  "summary": "Telegram channel + discussion group linked from the WebUI's About tab, a new logo showing a ghost touch blocked while a real touch passes through, and real clickable README badges."
+  "summary": "A new Material 3 Expressive control panel: live touch test, plain-language log, Tune tab, tablet layout. Plus startup and battery fixes."
 }
