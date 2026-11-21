@@ -1,7 +1,7 @@
 {
-  "version": "v3.12",
-  "versionCode": 33,
-  "zipUrl": "https://github.com/shivrajtode/TouchGuard/releases/download/v3.12/TouchGuard-v3.12.zip",
+  "version": "v3.13",
+  "versionCode": 34,
+  "zipUrl": "https://github.com/shivrajtode/TouchGuard/releases/download/v3.13/TouchGuard-v3.13.zip",
   "changelog": "https://raw.githubusercontent.com/shivrajtode/TouchGuard/main/LATEST.md",
-  "summary": "A new Material 3 Expressive control panel: live touch test, plain-language log, Tune tab, tablet layout. Plus startup and battery fixes."
+  "summary": "When a touch gets stuck, the filter now stops for a few seconds and restarts by itself (tunable, or off). Plus the new Material 3 Expressive control panel."
 }
