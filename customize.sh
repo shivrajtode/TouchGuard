@@ -71,15 +71,27 @@ echo "TS_NAME=\"$FOUND_NAME\"" > "$MODPATH/touchguard.conf"
 # prints a usage line if the binary is valid for this device's
 # architecture, or fails immediately (wrong ABI, corrupted file) if not --
 # either way this costs nothing and can't leave a broken binary in place.
+#
+# The usage line also lists the daemon's feature markers. A bundled binary that
+# runs fine but lacks "stuck-touch-pause" was built before that feature existed:
+# it is set aside, a fresh build from source is preferred when a compiler is
+# already there, and the old binary is put back if not. So an upgrade can never
+# leave a device without a working filter.
 PREBUILT_OK=0
+PREBUILT_OLD=0
 if [ -f "$MODPATH/prebuilt/touchguard-arm64" ] && [ "$(uname -m)" = "aarch64" ]; then
   cp -f "$MODPATH/prebuilt/touchguard-arm64" "$MODPATH/touchguard"
   chmod 755 "$MODPATH/touchguard"
-  if "$MODPATH/touchguard" 2>&1 | grep -q "usage:"; then
-    PREBUILT_OK=1
-  else
-    rm -f "$MODPATH/touchguard"
-  fi
+  PB_OUT="$("$MODPATH/touchguard" 2>&1)"
+  case "$PB_OUT" in
+    *usage:*stuck-touch-pause*)
+      PREBUILT_OK=1 ;;
+    *usage:*)
+      PREBUILT_OLD=1
+      mv -f "$MODPATH/touchguard" "$MODPATH/touchguard.bundled" ;;
+    *)
+      rm -f "$MODPATH/touchguard" ;;
+  esac
 fi
 
 if [ "$PREBUILT_OK" = "0" ]; then
@@ -87,7 +99,8 @@ if [ "$PREBUILT_OK" = "0" ]; then
   # If Termux is present but clang isn't installed yet, try installing it
   # automatically instead of requiring a manual `pkg install clang` step.
   TERMUX_PREFIX="/data/data/com.termux/files/usr"
-  if [ ! -x "$TERMUX_PREFIX/bin/clang" ] && [ -x "$TERMUX_PREFIX/bin/apt" ]; then
+  # (Not for an old-but-working bundled binary: that isn't worth a big download.)
+  if [ "$PREBUILT_OLD" = "0" ] && [ ! -x "$TERMUX_PREFIX/bin/clang" ] && [ -x "$TERMUX_PREFIX/bin/apt" ]; then
     HOME="/data/data/com.termux/files/home" \
     PREFIX="$TERMUX_PREFIX" \
     PATH="$TERMUX_PREFIX/bin:$PATH" \
@@ -112,10 +125,23 @@ if [ "$PREBUILT_OK" = "0" ]; then
       ui_print "TouchGuard: build FAILED -- see build.log in the module folder."
       ui_print "  Fix: from Termux run su -c 'sh $MODPATH/build.sh'"
     fi
-  else
+  elif [ "$PREBUILT_OLD" = "0" ]; then
     ui_print "TouchGuard: no precompiled binary for this device, and no C"
     ui_print "  compiler found either. From Termux: pkg install clang"
     ui_print "  then: su -c 'sh $MODPATH/build.sh'"
+  fi
+fi
+
+# A freshly built binary replaces the old bundled one; otherwise the old one
+# goes back, so the filter always works.
+if [ -f "$MODPATH/touchguard.bundled" ]; then
+  if [ -x "$MODPATH/touchguard" ]; then
+    rm -f "$MODPATH/touchguard.bundled"
+  else
+    mv -f "$MODPATH/touchguard.bundled" "$MODPATH/touchguard"
+    chmod 755 "$MODPATH/touchguard"
+    ui_print "TouchGuard: using the bundled binary. It works, but it can't do the"
+    ui_print "  stuck-touch pause yet. To enable that: su -c 'sh $MODPATH/build.sh'"
   fi
 fi
 
@@ -126,6 +152,7 @@ chmod -R 755 "$MODPATH/webroot" 2>/dev/null
 [ -f "$MODPATH/stale_ms.conf" ]     || echo "30000" > "$MODPATH/stale_ms.conf"
 [ -f "$MODPATH/stale_px.conf" ]     || echo "15"   > "$MODPATH/stale_px.conf"
 [ -f "$MODPATH/max_block_ms.conf" ] || echo "4000" > "$MODPATH/max_block_ms.conf"
+[ -f "$MODPATH/stale_pause_s.conf" ] || echo "3"    > "$MODPATH/stale_pause_s.conf"
 [ -f "$MODPATH/top_zone_pct.conf" ]      || echo "15"   > "$MODPATH/top_zone_pct.conf"
 [ -f "$MODPATH/top_zone_stale_ms.conf" ] || echo "1500" > "$MODPATH/top_zone_stale_ms.conf"
 [ -f "$MODPATH/wake_grace_ms.conf" ]     || echo "6000" > "$MODPATH/wake_grace_ms.conf"

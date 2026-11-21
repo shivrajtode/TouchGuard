@@ -1019,6 +1019,15 @@ function parseLine(line) {
     return { kind: 'wake', tone: 'warn', icon: 'wake', title: 'Touch didn\u2019t wake up with the screen',
              detail: 'Restarted the filter to resync with the touch driver (waited ' + fmtMs(+m[1]) + ')' };
   }
+  if ((m = line.match(/^(.*?): stuck touch, filter paused for (\d+)s/))) {
+    return { kind: 'pause', tone: 'warn', icon: 'stuck', title: 'Paused the filter for ' + m[2] + ' s',
+             detail: 'A touch was stuck, so TouchGuard stopped briefly and restarted by itself. ' + m[1] };
+  }
+  if (/^stuck touch: stopping the filter/.test(line)) return { kind: 'quiet' };   // the supervisor's timestamped line above is the one worth showing
+  if (/^stuck touch again, but the filter already paused/.test(line)) {
+    return { kind: 'nopause', tone: 'warn', icon: 'stuck', title: 'Hid a stuck touch without pausing',
+             detail: 'The filter had already paused 3 times in the last minute, so it only hid the touch this time' };
+  }
   if ((m = line.match(/^(.*?): starting touchguard on (\S+)/))) {
     return { kind: 'start', tone: 'info', icon: 'start', title: 'Filter started', detail: m[2] + ', ' + m[1] };
   }
@@ -1087,7 +1096,7 @@ function renderEvents(ul, events, emptyText, limit) {
 =================================================================== */
 const S = {
   loaded: false, running: false, fingers: 2, binOk: true, enabled: false, disabled: false,
-  burst: 0, stuck: 0, failsafe: 0, starts: 0, up: null, verbose: 0, recent: [],
+  burst: 0, stuck: 0, failsafe: 0, starts: 0, up: null, verbose: 0, paused: false, recent: [],
 };
 let noBridge = false;
 let busy = null, busyTimer = 0;
@@ -1109,9 +1118,9 @@ const STATUS_CMD = withDir([
   'M=@M@; L=$M/touchguard.log',
   'P=$(pgrep -x touchguard | head -n 1); U=""',
   'if [ -n "$P" ]; then set -- $(cat /proc/$P/stat 2>/dev/null); S=${22}; N=$(cut -d. -f1 /proc/uptime); [ -n "$S" ] && U=$((N - S / 100)); fi',
-  'echo "$(cat $M/max_fingers.conf 2>/dev/null)|$P|$([ -f $M/touchguard ] && echo 1 || echo 0)|$([ -f $M/enabled ] && echo 1 || echo 0)|$([ -f /data/local/tmp/touchguard_disable ] && echo 1 || echo 0)|$(grep -c "blocking until full release" $L 2>/dev/null)|$(grep -c "hiding it" $L 2>/dev/null)|$(grep -c "forcing clear" $L 2>/dev/null)|$(grep -c "starting touchguard on" $L 2>/dev/null)|$U|$(cat $M/verbose_log.conf 2>/dev/null)"',
+  'echo "$(cat $M/max_fingers.conf 2>/dev/null)|$P|$([ -f $M/touchguard ] && echo 1 || echo 0)|$([ -f $M/enabled ] && echo 1 || echo 0)|$([ -f /data/local/tmp/touchguard_disable ] && echo 1 || echo 0)|$(grep -c "blocking until full release" $L 2>/dev/null)|$(grep -c "hiding it" $L 2>/dev/null)|$(grep -c "forcing clear" $L 2>/dev/null)|$(grep -c "starting touchguard on" $L 2>/dev/null)|$U|$(cat $M/verbose_log.conf 2>/dev/null)|$([ -f /data/local/tmp/touchguard_paused ] && echo 1 || echo 0)"',
   'echo "@@"',
-  'grep -E "blocking until full release|hiding it|forcing clear|screen woke|EVIOCGRAB|cannot open|uinput|not found among|daemon exited|binary missing|TS_NAME|starting touchguard|disable flag" $L 2>/dev/null | tail -n 5',
+  'grep -E "blocking until full release|hiding it|forcing clear|screen woke|EVIOCGRAB|cannot open|uinput|not found among|daemon exited|binary missing|TS_NAME|starting touchguard|disable flag|stuck touch" $L 2>/dev/null | tail -n 5',
 ].join('\n'));
 
 async function refreshStatus() {
@@ -1135,6 +1144,7 @@ async function refreshStatus() {
   S.burst = toNum(f[5]); S.stuck = toNum(f[6]); S.failsafe = toNum(f[7]); S.starts = toNum(f[8]);
   S.up = (f[9] || '').trim() === '' ? null : toNum(f[9]);
   S.verbose = toNum(f[10]);
+  S.paused = (f[11] || '').trim() === '1';
   S.recent = (parts[1] || '').split('\n').filter(function (l) { return l.trim(); });
   S.loaded = true;
   if (busy === 'starting' && !S.running) { /* still coming up, keep the transitional state */ }
@@ -1176,6 +1186,9 @@ function renderHome() {
     state = 'on'; t = 'Filter is on';
     s = 'Allowing up to ' + n + ' finger' + (n > 1 ? 's' : '') + ' at once.' + (S.up !== null ? ' Running for ' + fmtDuration(S.up) + '.' : '');
     label = 'Stop filter'; cls = 'stop';
+  } else if (S.paused) {
+    state = 'warn'; t = 'Paused for a moment'; s = 'A touch got stuck, so TouchGuard stopped for a few seconds. It restarts by itself.';
+    label = 'Stop filter'; cls = 'stop';
   } else if (!S.binOk) {
     state = 'warn'; t = 'Filter needs attention'; s = 'The filter program is missing. Try reinstalling the module.'; label = 'Start filter'; cls = 'start';
   } else if (S.enabled && !S.disabled) {
@@ -1186,7 +1199,7 @@ function renderHome() {
   hero.className = 'hero is-' + state;
   title.textContent = t; sub.textContent = s;
   btn.textContent = label; btn.className = 'power ' + cls; btn.disabled = disabled;
-  btn.onclick = S.running ? stopDaemon : startDaemon;
+  btn.onclick = cls === 'stop' ? stopDaemon : startDaemon;
 
   highlight(n);
   $('field-note').hidden = !(S.loaded && !noBridge && !S.running && !busy);
@@ -1422,7 +1435,7 @@ const REPORT_CMD = withDir([
   'echo "device: $(getprop ro.product.manufacturer) $(getprop ro.product.model), Android $(getprop ro.build.version.release) (SDK $(getprop ro.build.version.sdk)), kernel $(uname -r)"',
   'echo "touch panel: $(grep TS_NAME $M/touchguard.conf 2>/dev/null | head -n 1 | cut -d= -f2 | tr -d \'"\')"',
   'echo "@@"',
-  'for f in max_fingers stale_ms stale_px top_zone_pct top_zone_stale_ms max_block_ms wake_grace_ms verbose_log; do printf \'%s=%s \' $f "$(cat $M/$f.conf 2>/dev/null)"; done; echo',
+  'for f in max_fingers stale_ms stale_px stale_pause_s top_zone_pct top_zone_stale_ms max_block_ms wake_grace_ms verbose_log; do printf \'%s=%s \' $f "$(cat $M/$f.conf 2>/dev/null)"; done; echo',
   'echo "@@"',
   'grep -v -F \'[v] \' $M/touchguard.log 2>/dev/null | tail -n 60',
 ].join('\n'));
@@ -1487,16 +1500,19 @@ confirmTap($('btn-refresh-touch'), 'Tap again, screen will blink', async functio
 const TUNE_ITEMS = [
   { key: 'stale_ms', file: 'stale_ms.conf', group: 'stuck', def: 30000, range: [500, 120000], title: 'Stuck-touch timeout',
     steps: [2000, 3000, 5000, 8000, 10000, 15000, 20000, 30000, 45000, 60000, 90000, 120000], fmt: fmtMs,
-    help: 'A finger that stays perfectly still this long is treated as a stuck ghost and hidden. Long presses and holds end at the same point, so keep it generous.' },
+    help: 'A finger that stays perfectly still this long is treated as a stuck ghost and hidden. Long presses and holds end at the same point, so keep it generous. What happens next is set below.' },
   { key: 'stale_px', file: 'stale_px.conf', group: 'stuck', def: 15, range: [0, 500], title: 'Still-finger tolerance',
     steps: [0, 5, 10, 15, 25, 40, 60, 100], fmt: function (v) { return String(v); },
     help: 'How far a held finger can drift and still count as not moving. Measured in touch-panel units, not screen pixels.' },
+  { key: 'stale_pause_s', file: 'stale_pause_s.conf', group: 'stuck', def: 3, range: [0, 30], title: 'Pause when a touch is stuck',
+    steps: [0, 1, 2, 3, 5, 8, 10, 15, 30], fmt: function (v) { return v ? v + ' s' : 'Off'; },
+    help: 'When a touch stays stuck for the time above, TouchGuard itself stops for this long and then starts again by itself. The touch panel is never reset. Off just hides the stuck touch.' },
   { key: 'top_zone_pct', file: 'top_zone_pct.conf', group: 'top', def: 15, range: [0, 100], title: 'Top strip size',
     steps: [0, 5, 10, 15, 20, 25, 30, 40], fmt: function (v) { return v ? v + '% of the height' : 'Off'; },
     help: 'The notification-bar area. Ghosts like it, so it gets its own shorter timeout. Zero turns that off.' },
   { key: 'top_zone_stale_ms', file: 'top_zone_stale_ms.conf', group: 'top', def: 1500, range: [200, 60000], title: 'Top strip timeout',
     steps: [500, 1000, 1500, 2000, 3000, 5000, 10000], fmt: fmtMs,
-    help: 'How long a still finger inside the top strip survives before it is hidden.' },
+    help: 'How long a still finger inside the top strip survives before it is hidden. The same pause setting applies.' },
   { key: 'max_block_ms', file: 'max_block_ms.conf', group: 'safety', def: 4000, range: [500, 30000], title: 'Longest block',
     steps: [1000, 2000, 3000, 4000, 6000, 8000, 12000, 20000], fmt: fmtMs,
     help: 'If a burst keeps going this long, the filter lets go instead of blocking forever.' },
@@ -1576,7 +1592,9 @@ function showRunning(line) {
   const el = $('tune-running');
   const m = line.match(/max (\d+) finger.*stale timeout (\d+)ms\/(\d+)px, top-zone timeout (\d+)ms \(top (\d+)%\), block failsafe (\d+)ms/);
   if (!m) { el.textContent = S.running ? '\u00a0' : 'The filter isn\u2019t running, so changes take effect when you start it.'; return; }
-  el.textContent = 'The running filter loaded: ' + m[1] + ' finger limit, stuck after ' + fmtMs(+m[2]) + ', top strip ' + m[5] + '% with ' + fmtMs(+m[4]) + ', block limit ' + fmtMs(+m[6]) + '.';
+  const pm = line.match(/stuck-touch pause (\S+)/);
+  el.textContent = 'The running filter loaded: ' + m[1] + ' finger limit, stuck after ' + fmtMs(+m[2]) + ', top strip ' + m[5] + '% with ' + fmtMs(+m[4]) + ', block limit ' + fmtMs(+m[6]) +
+    (pm ? ', pause ' + (pm[1] === 'off' ? 'off' : pm[1].replace(/s$/, ' s')) : '') + '.';
 }
 $('btn-tune-reset').onclick = function () {
   TUNE_ITEMS.forEach(function (it) { tune.current[it.key] = it.def; tune.steps[it.key] = stepsFor(it, it.def); });

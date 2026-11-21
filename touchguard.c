@@ -38,6 +38,16 @@
 #include <linux/uinput.h>
 #include <sys/ioctl.h>
 
+/* Where the module lives and where scratch flags go. Overridable at build time
+ * (-DTG_MODDIR=... -DTG_TMPDIR=...) purely so the daemon can be exercised off
+ * a phone; the defaults are the real paths and a normal build never sets them. */
+#ifndef TG_MODDIR
+#define TG_MODDIR "/data/adb/modules/touchguard"
+#endif
+#ifndef TG_TMPDIR
+#define TG_TMPDIR "/data/local/tmp"
+#endif
+
 #define MAX_SLOTS 16
 #define DEFAULT_MAX_FINGERS 2
 #define DEFAULT_STALE_MS    30000
@@ -47,17 +57,30 @@
 #define DEFAULT_WAKE_GRACE_MS     6000
 #define DEFAULT_VERBOSE_LOG       0
 #define DEFAULT_MAX_BLOCK_MS 4000
+#define DEFAULT_STALE_PAUSE_S     3
 
-#define MAX_FINGERS_CONF  "/data/adb/modules/touchguard/max_fingers.conf"
-#define STALE_MS_CONF     "/data/adb/modules/touchguard/stale_ms.conf"
-#define STALE_PX_CONF     "/data/adb/modules/touchguard/stale_px.conf"
-#define TOP_ZONE_PCT_CONF       "/data/adb/modules/touchguard/top_zone_pct.conf"
-#define TOP_ZONE_STALE_MS_CONF  "/data/adb/modules/touchguard/top_zone_stale_ms.conf"
-#define WAKE_GRACE_MS_CONF      "/data/adb/modules/touchguard/wake_grace_ms.conf"
-#define VERBOSE_LOG_CONF        "/data/adb/modules/touchguard/verbose_log.conf"
-#define MAX_BLOCK_MS_CONF "/data/adb/modules/touchguard/max_block_ms.conf"
-#define DISABLE_FLAG      "/data/local/tmp/touchguard_disable"
-#define LOG_FILE          "/data/adb/modules/touchguard/touchguard.log"
+/* Stuck-touch pause: when a touch is stuck for the configured time, the
+ * filter stops itself for a few seconds and then starts again, instead of
+ * only hiding that one touch. It exits with EXIT_PAUSE (EX_TEMPFAIL, "try
+ * again shortly") so the supervisor can tell a deliberate pause from a
+ * crash. Only the daemon stops: the touch panel itself is never reset, and
+ * the screen is never touched. */
+#define EXIT_PAUSE            75
+#define PAUSE_BURST_MAX       3     /* at most this many pauses ...        */
+#define PAUSE_BURST_WINDOW_S  60    /* ... per this many seconds           */
+
+#define MAX_FINGERS_CONF TG_MODDIR "/max_fingers.conf"
+#define STALE_MS_CONF TG_MODDIR "/stale_ms.conf"
+#define STALE_PX_CONF TG_MODDIR "/stale_px.conf"
+#define TOP_ZONE_PCT_CONF TG_MODDIR "/top_zone_pct.conf"
+#define TOP_ZONE_STALE_MS_CONF TG_MODDIR "/top_zone_stale_ms.conf"
+#define WAKE_GRACE_MS_CONF TG_MODDIR "/wake_grace_ms.conf"
+#define VERBOSE_LOG_CONF TG_MODDIR "/verbose_log.conf"
+#define MAX_BLOCK_MS_CONF TG_MODDIR "/max_block_ms.conf"
+#define STALE_PAUSE_S_CONF TG_MODDIR "/stale_pause_s.conf"
+#define PAUSE_STATE_FILE  TG_TMPDIR "/touchguard_pause_state"
+#define DISABLE_FLAG      TG_TMPDIR "/touchguard_disable"
+#define LOG_FILE          TG_MODDIR "/touchguard.log"
 
 /* Fast circular log buffer — no blocking I/O in the event loop */
 #define LOG_RING_SIZE 32768
@@ -182,13 +205,18 @@ static void log_flush_if_needed(void) {
     }
 }
 
-static void do_cleanup(void) {
-    /* Flush any pending log before cleanup */
+static void log_flush_now(void) {
     if (log_fp && log_head > 0) {
         fwrite(log_ring, 1, log_head, log_fp);
         fflush(log_fp);
         log_head = 0;
+        last_log_flush = now_ms();
     }
+}
+
+static void do_cleanup(void) {
+    /* Flush any pending log before cleanup */
+    log_flush_now();
     if (log_fp) { fclose(log_fp); log_fp = NULL; }
     
     if (real_fd >= 0) {
@@ -201,6 +229,37 @@ static void do_cleanup(void) {
         close(ui_fd);
         ui_fd = -1;
     }
+}
+
+/* Flap guard for the stuck-touch pause. A pause hands the touchscreen back to
+ * Android for a few seconds, which is fine now and then but defeats the point
+ * of the filter if it repeats: a ghost that keeps coming back would keep the
+ * filter switched off most of the time. So at most PAUSE_BURST_MAX pauses are
+ * allowed per PAUSE_BURST_WINDOW_S seconds; beyond that the stuck touch is
+ * only hidden, as before, until the window clears. Every pause is a fresh
+ * process, so the history lives in a small file. Timestamps are monotonic
+ * seconds, which means entries left over from before a reboot look like they
+ * are in the future and are discarded rather than trusted. If the file can't
+ * be read or written the guard degrades to "allow", never to "block". */
+static int pause_allowed(const char *path, long long now_s) {
+    long long keep[PAUSE_BURST_MAX + 1];
+    int n = 0;
+    FILE *f = fopen(path, "r");
+    if (f) {
+        long long v;
+        while (fscanf(f, "%lld", &v) == 1) {
+            if (v <= now_s && now_s - v < PAUSE_BURST_WINDOW_S && n < PAUSE_BURST_MAX) keep[n++] = v;
+        }
+        fclose(f);
+    }
+    if (n >= PAUSE_BURST_MAX) return 0;
+    keep[n++] = now_s;
+    f = fopen(path, "w");
+    if (f) {
+        for (int i = 0; i < n; i++) fprintf(f, "%lld\n", keep[i]);
+        fclose(f);
+    }
+    return 1;
 }
 
 static int setup_uinput(int real, int ui) {
@@ -293,7 +352,7 @@ static void release_all_slots(int ui, int slot_active[MAX_SLOTS], int slot_suppr
     emit(ui, &syn);
 }
 
-static void check_stale_slots(int ui, int slot_active[MAX_SLOTS], int slot_suppressed[MAX_SLOTS],
+static int check_stale_slots(int ui, int slot_active[MAX_SLOTS], int slot_suppressed[MAX_SLOTS],
                                long long slot_start_ms[MAX_SLOTS],
                                int slot_start_x[MAX_SLOTS], int slot_start_y[MAX_SLOTS],
                                int slot_cur_x[MAX_SLOTS], int slot_cur_y[MAX_SLOTS],
@@ -301,6 +360,7 @@ static void check_stale_slots(int ui, int slot_active[MAX_SLOTS], int slot_suppr
                                long long stale_ms, int stale_px, long long top_zone_stale_ms,
                                int verbose_log) {
     long long t = now_ms();
+    int hidden = 0;
     for (int s = 0; s < MAX_SLOTS; s++) {
         if (!slot_active[s] || slot_suppressed[s]) continue;
         if (slot_start_x[s] == INT_MIN) continue;
@@ -342,6 +402,7 @@ static void check_stale_slots(int ui, int slot_active[MAX_SLOTS], int slot_suppr
         emit(ui, &sel);
         emit(ui, &rel);
         slot_suppressed[s] = 1;
+        hidden++;
 
         if (count_visible(slot_active, slot_suppressed) == 0) {
             struct input_event up, syn;
@@ -358,6 +419,7 @@ static void check_stale_slots(int ui, int slot_active[MAX_SLOTS], int slot_suppr
             emit(ui, &syn);
         }
     }
+    return hidden;
 }
 
 static void force_clear_if_stuck(int slot_active[MAX_SLOTS], int slot_suppressed[MAX_SLOTS],
@@ -376,9 +438,10 @@ static void force_clear_if_stuck(int slot_active[MAX_SLOTS], int slot_suppressed
     *blocked = 0;
 }
 
+#ifndef TG_UNIT_TEST
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        fprintf(stderr, "usage: %s /dev/input/eventN\n", argv[0]);
+        fprintf(stderr, "usage: %s /dev/input/eventN  [features: stuck-touch-pause]\n", argv[0]);
         return 1;
     }
 
@@ -427,6 +490,10 @@ int main(int argc, char *argv[]) {
     long long top_zone_stale_ms = (long long)read_int_config(TOP_ZONE_STALE_MS_CONF, DEFAULT_TOP_ZONE_STALE_MS, 200, 60000);
     long long wake_grace_ms = (long long)read_int_config(WAKE_GRACE_MS_CONF, DEFAULT_WAKE_GRACE_MS, 500, 60000);
     int verbose_log = read_int_config(VERBOSE_LOG_CONF, DEFAULT_VERBOSE_LOG, 0, 1);
+    int stale_pause_s = read_int_config(STALE_PAUSE_S_CONF, DEFAULT_STALE_PAUSE_S, 0, 30);
+    char pause_desc[24];
+    if (stale_pause_s > 0) snprintf(pause_desc, sizeof(pause_desc), "%ds", stale_pause_s);
+    else snprintf(pause_desc, sizeof(pause_desc), "off");
 
     char backlight_path[256];
     int have_backlight = probe_backlight_path(backlight_path, sizeof(backlight_path));
@@ -450,10 +517,10 @@ int main(int argc, char *argv[]) {
     }
 
     fprintf(stderr, "touchguard active on %s: max %d finger%s, stale timeout %lldms/%dpx, "
-            "top-zone timeout %lldms (top %d%%), block failsafe %lldms, wake watchdog %s\n",
+            "top-zone timeout %lldms (top %d%%), block failsafe %lldms, wake watchdog %s, stuck-touch pause %s\n",
             argv[1], max_fingers, max_fingers == 1 ? "" : "s", stale_ms, stale_px,
             top_zone_stale_ms, top_zone_pct, max_block_ms,
-            have_backlight ? "active" : "unavailable (no backlight path found)");
+            have_backlight ? "active" : "unavailable (no backlight path found)", pause_desc);
 
     int slot_active[MAX_SLOTS], slot_suppressed[MAX_SLOTS], slot_in_top_zone[MAX_SLOTS];
     long long slot_start_ms[MAX_SLOTS];
@@ -480,9 +547,21 @@ int main(int argc, char *argv[]) {
     int frame_slot[512];
     int frame_len = 0;
 
+    /* One read() syscall pulls whatever's actually queued (up to 64
+     * events) instead of one syscall per event. Real events still get
+     * processed one at a time, identically to before -- this only cuts
+     * syscall count, which matters specifically during a high-rate burst
+     * (a genuine ghost-touch episode), not during ordinary single/double
+     * finger use where events are already sparse. */
+    struct input_event read_batch[64];
+    int read_batch_count = 0;
+    int read_batch_pos = 0;
+
     struct pollfd pfd;
     pfd.fd = real_fd;
     pfd.events = POLLIN;
+
+    int pause_exit = 0;   /* set when the loop ends because a stuck touch asked for a pause */
 
     while (running) {
         if (access(DISABLE_FLAG, F_OK) == 0) {
@@ -493,10 +572,30 @@ int main(int argc, char *argv[]) {
         /* Lazy stale check: every 100 events or every 5 seconds */
         long long now = now_ms();
         if (event_count >= 100 || (now - last_stale_check >= 5000)) {
-            check_stale_slots(ui_fd, slot_active, slot_suppressed, slot_start_ms,
+            int newly_hidden = check_stale_slots(ui_fd, slot_active, slot_suppressed, slot_start_ms,
                                slot_start_x, slot_start_y, slot_cur_x, slot_cur_y,
                                slot_in_top_zone, stale_ms, stale_px, top_zone_stale_ms, verbose_log);
             force_clear_if_stuck(slot_active, slot_suppressed, &blocked, blocked_since_ms, max_block_ms);
+
+            /* A touch was stuck for its configured time: stop the filter for a
+             * few seconds and start it again. The same shape as the wake
+             * watchdog below: leave through the normal cleanup path (which
+             * releases the grab and destroys the virtual device) and let the
+             * supervisor bring up a fresh instance after the pause, rather
+             * than trying to re-initialise in place. */
+            if (newly_hidden > 0 && stale_pause_s > 0) {
+                if (pause_allowed(PAUSE_STATE_FILE, now_ms() / 1000)) {
+                    log_flush_now();   /* keep the log in order: the "hiding it" line first */
+                    fprintf(stderr, "stuck touch: stopping the filter for %ds, then it restarts by itself\n", stale_pause_s);
+                    pause_exit = 1;
+                    break;
+                } else {
+                    char pb[160];
+                    snprintf(pb, sizeof(pb), "stuck touch again, but the filter already paused %d times in the last %d s, so it only hides the touch this time\n",
+                             PAUSE_BURST_MAX, PAUSE_BURST_WINDOW_S);
+                    log_ring_write(pb);
+                }
+            }
             event_count = 0;
             last_stale_check = now;
         }
@@ -538,22 +637,39 @@ int main(int argc, char *argv[]) {
         /* Flush logs every 10 seconds */
         log_flush_if_needed();
 
-        /* Poll with 200ms timeout instead of 2000ms — keeps stale detection responsive */
-        int pr = poll(&pfd, 1, 200);
-        if (pr < 0) {
-            if (errno == EINTR) continue;
-            fprintf(stderr, "poll error: %s\n", strerror(errno));
-            break;
-        }
-        if (pr == 0) continue;
-        if (!(pfd.revents & POLLIN)) continue;
+        if (read_batch_pos >= read_batch_count) {
+            /* Local buffer exhausted -- wait for and fetch more. If we
+             * still have buffered events, none of this runs at all: going
+             * through poll() when we already have data ready would add up
+             * to 500ms of pointless delay before processing something we
+             * already have in hand. */
+            /* 500ms, not 200ms: a real touch event wakes poll() immediately
+             * either way -- this timeout only governs how often the process
+             * wakes for nothing, during genuinely idle stretches. Waking
+             * 5x/sec forever (the old 200ms) can keep the SoC from ever
+             * reaching its deepest idle states, background battery drain.
+             * 500ms still gives 3 chances to notice a stale contact within
+             * the tightest configured window (top_zone_stale_ms, default
+             * 1500ms) -- comfortable margin, not a tuning compromise. */
+            int pr = poll(&pfd, 1, 500);
+            if (pr < 0) {
+                if (errno == EINTR) continue;
+                fprintf(stderr, "poll error: %s\n", strerror(errno));
+                break;
+            }
+            if (pr == 0) continue;
+            if (!(pfd.revents & POLLIN)) continue;
 
-        ssize_t n = read(real_fd, &ev, sizeof(ev));
-        if (n != (ssize_t)sizeof(ev)) {
-            if (errno == EINTR) continue;
-            fprintf(stderr, "read ended: %s\n", strerror(errno));
-            break;
+            ssize_t rn = read(real_fd, read_batch, sizeof(read_batch));
+            if (rn <= 0) {
+                if (errno == EINTR) continue;
+                fprintf(stderr, "read ended: %s\n", strerror(errno));
+                break;
+            }
+            read_batch_count = (int)(rn / (ssize_t)sizeof(struct input_event));
+            read_batch_pos = 0;
         }
+        ev = read_batch[read_batch_pos++];
 
         event_count++;
         last_real_event_ms = now_ms();
@@ -656,5 +772,6 @@ int main(int argc, char *argv[]) {
 
     do_cleanup();
     fprintf(stderr, "touchguard stopped\n");
-    return 0;
+    return pause_exit ? EXIT_PAUSE : 0;
 }
+#endif /* TG_UNIT_TEST */
